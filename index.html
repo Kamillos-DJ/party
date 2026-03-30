@@ -7,20 +7,20 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <style>
         body { background: #000; color: #fff; font-family: sans-serif; padding: 20px; }
-        input { width: 100%; padding: 15px; border-radius: 25px; border: 2px solid #1DB954; background: #222; color: #fff; margin-bottom: 10px; box-sizing: border-box; }
+        input { width: 100%; padding: 15px; border-radius: 25px; border: 2px solid #1DB954; background: #222; color: #fff; margin-bottom: 10px; box-sizing: border-box; font-size: 16px; }
         .res-box { background: #121212; border: 1px solid #333; display: none; margin-bottom: 20px; border-radius: 10px; }
         .s-item { padding: 10px; border-bottom: 1px solid #222; cursor: pointer; display: flex; align-items: center; gap: 10px; }
         .s-item img { width: 40px; height: 40px; }
         .lists { display: flex; gap: 20px; }
         .col { flex: 1; }
         .card { background: #181818; padding: 10px; margin-bottom: 5px; border-radius: 8px; display: flex; align-items: center; gap: 10px; }
-        .card img { width: 40px; height: 40px; }
-        .btn { background: #1DB954; border: none; color: #fff; padding: 5px 10px; border-radius: 5px; cursor: pointer; }
+        .card img { width: 45px; height: 45px; }
+        .btn { background: #1DB954; border: none; color: #fff; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <input type="text" id="search" placeholder="Hledat songu...">
+    <input type="text" id="search" placeholder="Hledat skladbu na Spotify...">
     <div id="results" class="res-box"></div>
 
     <div class="lists">
@@ -29,8 +29,11 @@
     </div>
 
 <script>
-// Tady je ta kritická adresa - musí být takto v celku:
-const API_URL = "https://worker-proud-sun-3351.kamillos-dj.workers.dev";
+// Rozdělená adresa, aby ji nic nemohlo zkrátit tečkami
+const part1 = "https://worker-proud-sun-3351";
+const part2 = ".kamillos-dj";
+const part3 = ".workers.dev";
+const API_URL = part1 + part2 + part3;
 
 firebase.initializeApp({
     apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
@@ -45,41 +48,52 @@ async function getToken() {
         const r = await fetch(API_URL + "/token");
         const d = await r.json();
         token = d.access_token;
-    } catch(e) { console.error("Chyba tokenu"); }
+        console.log("Připojeno k API");
+    } catch(e) { console.error("Chyba: API nedostupné"); }
 }
 getToken();
 
 document.getElementById("search").oninput = async (e) => {
-    const q = e.target.value;
-    if (q.length < 3) return;
-    const r = await fetch(API_URL + "/search?query=" + encodeURIComponent(q));
-    const d = await r.json();
-    const resDiv = document.getElementById("results");
-    resDiv.innerHTML = "";
-    resDiv.style.display = "block";
-    (d.tracks?.items || []).forEach(t => {
-        const div = document.createElement("div");
-        div.className = "s-item";
-        div.innerHTML = `<img src="${t.album.images[2].url}"> <span>${t.name} - ${t.artists[0].name}</span>`;
-        div.onclick = () => {
-            db.ref("requests/" + t.id).transaction(c => {
-                if (c) return { ...c, votes: c.votes + 1 };
-                return { song: t.name, artist: t.artists[0].name, img: t.album.images[2].url, votes: 1, status: "waiting" };
-            });
-            e.target.value = ""; resDiv.style.display = "none";
-        };
-        resDiv.appendChild(div);
-    });
+    const q = e.target.value.trim();
+    if (q.length < 3 || !token) return;
+    
+    try {
+        const r = await fetch(API_URL + "/search?query=" + encodeURIComponent(q));
+        const d = await r.json();
+        const resDiv = document.getElementById("results");
+        resDiv.innerHTML = "";
+        resDiv.style.display = "block";
+        
+        (d.tracks?.items || []).forEach(t => {
+            const div = document.createElement("div");
+            div.className = "s-item";
+            const img = t.album.images[2]?.url || "";
+            div.innerHTML = `<img src="${img}"> <span>${t.name} - ${t.artists[0].name}</span>`;
+            div.onclick = () => {
+                db.ref("requests/" + t.id).transaction(c => {
+                    if (c) return { ...c, votes: (c.votes || 0) + 1 };
+                    return { song: t.name, artist: t.artists[0].name, img: img, votes: 1, status: "waiting" };
+                });
+                e.target.value = ""; resDiv.style.display = "none";
+            };
+            resDiv.appendChild(div);
+        });
+    } catch(err) { console.error("Chyba vyhledávání"); }
 };
 
 db.ref("requests").on("value", snap => {
     let qH = "", hH = "";
-    const items = Object.entries(snap.val() || {}).sort((a,b) => b[1].votes - a[1].votes);
+    const val = snap.val() || {};
+    const items = Object.entries(val).sort((a,b) => b[1].votes - a[1].votes);
+    
     items.forEach(([id, d]) => {
         const html = `<div class="card">
             <img src="${d.img}">
-            <div style="flex:1">${d.song}<br><small>${d.artist}</small></div>
-            <div>${d.votes} <button class="btn" onclick="vote('${id}')">+</button></div>
+            <div style="flex:1"><b>${d.song}</b><br><small>${d.artist}</small></div>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <b>${d.votes}</b>
+                ${d.status !== 'played' ? `<button class="btn" onclick="vote('${id}')">+</button>` : ''}
+            </div>
         </div>`;
         if (d.status === "played") hH += html; else qH += html;
     });
@@ -87,7 +101,7 @@ db.ref("requests").on("value", snap => {
     document.getElementById("history").innerHTML = hH;
 });
 
-window.vote = (id) => db.ref("requests/" + id + "/votes").transaction(v => v + 1);
+window.vote = (id) => db.ref("requests/" + id + "/votes").transaction(v => (v || 0) + 1);
 </script>
 </body>
 </html>
