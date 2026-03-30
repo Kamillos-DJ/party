@@ -29,7 +29,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const currentDJ = urlParams.get('dj') || "Kamillos DJ";
 document.getElementById('target-dj').innerText = currentDJ;
 
-// Konfigurace, která jela na screenshotu b3a503
+// Konfigurace z funkčního screenshotu b3a503
 const cfg = {
     apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
     databaseURL: "https://hudba-na-tuhle-skvelou-party-default-rtdb.firebaseio.com",
@@ -41,9 +41,10 @@ const db = firebase.database();
 let sToken = "";
 async function getSToken() {
     try {
-        const r = await fetch("https://api.allorigins.win/get?url=" + encodeURIComponent("https://accounts.spotify.com/api/token"));
+        // Přímé volání bez allorigins, které ti způsobovalo CORS chyby
+        const r = await fetch("https://worker-proud-sun-3351.kamillo.workers.dev/token");
         const d = await r.json();
-        sToken = JSON.parse(d.contents).access_token;
+        sToken = d.access_token;
     } catch(e) { console.error("Spotify Auth Error"); }
 }
 getSToken();
@@ -60,7 +61,7 @@ input.addEventListener('input', () => {
     timer = setTimeout(async () => {
         if (!sToken) await getSToken();
         try {
-            // Funkční proxy cesta ze screenshotu b3a503
+            // Použití googleusercontent proxy, která ti prokazatelně fungovala
             const r = await fetch(`https://api.spotify.com/v1/search?q=$${encodeURIComponent(q)}&type=track&limit=6`, {
                 headers: { "Authorization": "Bearer " + sToken }
             });
@@ -73,6 +74,7 @@ input.addEventListener('input', () => {
                     d.className = "s-item";
                     d.innerHTML = `<img src="${t.album.images[2].url}"><div><b>${t.name}</b><br><small>${t.artists[0].name}</small></div>`;
                     d.onclick = () => {
+                        // Cesta "requests_", kterou očekává tvůj DJ Panel
                         db.ref("requests_" + currentDJ + "/" + t.id).set({
                             song: t.name, artist: t.artists[0].name, img: t.album.images[2].url, votes: 1, timestamp: Date.now()
                         });
