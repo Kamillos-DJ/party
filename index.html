@@ -10,8 +10,12 @@
     body { background-color: #000; color: #fff; font-family: 'Inter', sans-serif; margin: 0; padding: 10px; }
     #dj-box { max-width: 1000px; margin: auto; background: #121212; padding: 25px; border-radius: 20px; border: 1px solid #333; }
     
-    .search-wrapper { position: relative; width: 100%; margin-bottom: 20px; }
-    input[type="text"] { width: 100%; padding: 14px 20px; border-radius: 25px; background: #222; color: #fff; box-sizing: border-box; font-size: 16px; outline: none; border: 2px solid #1DB954; }
+    .search-container { display: flex; flex-direction: column; gap: 15px; }
+    .search-wrapper { position: relative; width: 100%; }
+   
+    input[type="text"] { width: 100%; padding: 14px 20px; border-radius: 25px; background: #222; color: #fff; box-sizing: border-box; font-size: 16px; outline: none; border: 2px solid #333; }
+    #i { border-color: #1DB954; } 
+    #i-tidal { border-color: #00FFFF; }
 
     /* NAŠEPTVÁVÁNÍ */
     .res-box { display: none; position: absolute; top: 100%; left: 0; right: 0; background: #252525; border-radius: 15px; margin-top: 5px; max-height: 400px; overflow-y: auto; border: 1px solid #444; z-index: 9999; }
@@ -19,32 +23,43 @@
     .s-item:hover { background: #333; }
     .s-item img { width: 45px; height: 45px; border-radius: 6px; flex-shrink: 0; }
     
-    .s-info { display: flex; flex-direction: column; }
-    .s-name { font-weight: bold; font-size: 15px; color: #fff; display: block; }
-    .s-artist { font-size: 13px; color: #aaa; display: block; }
+    /* Texty pod sebou */
+    .s-text { display: flex; flex-direction: column; }
+    .s-text b { font-size: 15px; color: #fff; }
+    .s-text small { color: #aaa; font-size: 13px; }
 
-    /* SEZNAM (FRONTA) */
+    /* SEZNAMY */
     .lists-container { display: flex; gap: 20px; margin-top: 30px; flex-wrap: wrap; }
     .list-column { flex: 1; min-width: 320px; }
-    .req-card { background: #222; padding: 12px 16px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; border: 1px solid #333; border-left: 6px solid #4682B4; }
+    
+    .req-card { position: relative; background: #222; padding: 12px 16px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; border: 1px solid #333; overflow: hidden; }
+    .req-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--bar-color, #4682B4); }
+    
     .req-info { display: flex; align-items: center; gap: 15px; }
     .req-info img { width: 50px; height: 50px; border-radius: 6px; }
-    
-    .req-text { display: flex; flex-direction: column; }
-    .req-song { font-weight: bold; font-size: 16px; }
-    .req-artist { font-size: 13px; color: #bbb; }
+    .req-details { display: flex; flex-direction: column; }
+    .req-details b { font-size: 16px; color: #fff; }
+    .req-details small { color: #bbb; font-size: 13px; }
 
+    .vote-section { display: flex; align-items: center; gap: 12px; }
     .v-btn { background: #1DB954; border: none; color: #fff; width: 38px; height: 38px; border-radius: 50%; cursor: pointer; font-size: 20px; font-weight: bold; }
-    .vote-count { font-size: 18px; font-weight: bold; color: #1DB954; margin-right: 10px; }
-    h3 { color: #1DB954; font-size: 14px; text-transform: uppercase; text-align: center; border-bottom: 1px solid #333; padding-bottom: 10px; }
+    .vote-count { font-size: 18px; font-weight: bold; color: #1DB954; }
+    
+    h3 { color: #1DB954; font-size: 14px; text-transform: uppercase; text-align: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
 </style>
 </head>
 <body>
 
 <div id="dj-box">
-    <div class="search-wrapper">
-        <input type="text" id="i" placeholder="Hledat skladbu na Spotify..." autocomplete="off">
-        <div id="r" class="res-box"></div>
+    <div class="search-container">
+        <div class="search-wrapper">
+            <input type="text" id="i" placeholder="Hledat na Spotify..." autocomplete="off">
+            <div id="r" class="res-box"></div>
+        </div>
+        <div class="search-wrapper">
+            <input type="text" id="i-tidal" placeholder="Hledat na Tidalu..." autocomplete="off">
+            <div id="r-tidal" class="res-box"></div>
+        </div>
     </div>
     <div class="lists-container">
         <div class="list-column"><h3>🔥 FRONTA</h3><div id="l"></div></div>
@@ -53,71 +68,74 @@
 </div>
 
 <script>
-const firebaseConfig = {
+firebase.initializeApp({
     apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
     databaseURL: "https://hudba-na-tuhle-skvelou-party-default-rtdb.firebaseio.com",
     projectId: "hudba-na-tuhle-skvelou-party"
-};
-firebase.initializeApp(firebaseConfig);
+});
 const db = firebase.database();
 
 let sToken = "";
-
 async function getSToken() {
     try {
-        const response = await fetch("https://worker-proud-sun-3351.kamillos-dj.workers.dev/token");
-        const data = await response.json();
-        sToken = data.access_token;
-    } catch (e) { console.error("Chyba tokenu"); }
+        const r = await fetch("https://worker-proud-sun-3351.kamillos-dj.workers.dev/token");
+        const d = await r.json();
+        sToken = d.access_token;
+    } catch(e) { console.log("Auth error"); }
 }
 getSToken();
 
-const input = document.getElementById('i');
-const res = document.getElementById('r');
-let timer;
+function initSearch(inputId, resId) {
+    const input = document.getElementById(inputId);
+    const res = document.getElementById(resId);
+    let timer;
 
-input.addEventListener('input', (e) => {
-    clearTimeout(timer);
-    let v = e.target.value;
-    if (v.trim().length < 3) { res.style.display = "none"; return; }
+    input.addEventListener('input', (e) => {
+        clearTimeout(timer);
+        let v = e.target.value;
+        if (v.trim().length < 3) { res.style.display = "none"; return; }
 
-    timer = setTimeout(() => {
-        if (!sToken) return;
-        // OPRAVA: Přidán znak $ před {encodeURIComponent(v)}
-        fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(v)}&type=track&limit=6`, {
-            headers: { "Authorization": "Bearer " + sToken }
-        })
-        .then(r => r.json())
-        .then(j => {
-            res.innerHTML = "";
-            const tracks = j.tracks?.items || [];
-            if (tracks.length > 0) {
-                res.style.display = "block";
-                tracks.forEach(t => {
-                   const img = t.album.images[2]?.url || "";
-                   const div = document.createElement("div");
-                   div.className = "s-item";
-                   div.innerHTML = `
-                    <img src="${img}">
-                    <div class="s-info">
-                        <span class="s-name">${t.name}</span>
-                        <span class="s-artist">${t.artists[0].name}</span>
-                    </div>`;
-                   div.onclick = () => {
-                       sendReq(t.artists[0].name, t.name, img, t.id);
-                       input.value = ""; res.style.display = "none";
-                   };
-                   res.appendChild(div);
-                });
-            }
-        });
-    }, 400);
-});
+        timer = setTimeout(() => {
+            if (!sToken) return;
+            // FIX: Přidán $ před složenou závorku
+            fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(v)}&type=track&limit=6`, {
+                headers: { "Authorization": "Bearer " + sToken }
+            })
+            .then(r => r.json())
+            .then(j => {
+                res.innerHTML = "";
+                const tracks = j.tracks?.items || [];
+                if (tracks.length > 0) {
+                    res.style.display = "block";
+                    tracks.forEach(t => {
+                        const img = t.album.images[2]?.url || "";
+                        const div = document.createElement("div");
+                        div.className = "s-item";
+                        div.innerHTML = `
+                            <img src="${img}">
+                            <div class="s-text">
+                                <b>${t.name}</b>
+                                <small>${t.artists[0].name}</small>
+                            </div>`;
+                        div.onclick = () => {
+                            sendReq(t.artists[0].name, t.name, img, t.id);
+                            input.value = ""; res.style.display = "none";
+                        };
+                        res.appendChild(div);
+                    });
+                }
+            });
+        }, 400);
+    });
+}
 
-function sendReq(artist, song, img, id) {
+initSearch('i', 'r');
+initSearch('i-tidal', 'r-tidal');
+
+function sendReq(a, s, i, id) {
     db.ref("requests/" + id).transaction(curr => {
         if (curr) return { ...curr, votes: (curr.votes || 0) + 1 };
-        return { artist: artist, song: song, img: img, votes: 1, status: "waiting", time: Date.now() };
+        return { artist: a, song: s, img: i, votes: 1, status: "waiting", time: Date.now() };
     });
 }
 
@@ -131,17 +149,17 @@ db.ref("requests").on("value", snap => {
     if (val) {
         Object.entries(val).sort((a,b) => b[1].votes - a[1].votes).forEach(([id, d]) => {
             const card = `
-            <div class="req-card">
+            <div class="req-card" style="--bar-color: ${d.status === 'played' ? '#666' : '#4682B4'}">
                 <div class="req-info">
                     <img src="${d.img}">
-                    <div class="req-text">
-                        <span class="req-song">${d.song}</span>
-                        <span class="req-artist">${d.artist}</span>
+                    <div class="req-details">
+                        <b>${d.song}</b>
+                        <small>${d.artist}</small>
                     </div>
                 </div>
-                <div style="display:flex; align-items:center;">
+                <div class="vote-section">
                     <span class="vote-count">${d.votes || 0}</span>
-                    <button onclick="vote('${id}')" class="v-btn">+</button>
+                    ${d.status !== 'played' ? `<button onclick="vote('${id}')" class="v-btn">+</button>` : ''}
                 </div>
             </div>`;
             if (d.status === "played") hH += card; else lH += card;
