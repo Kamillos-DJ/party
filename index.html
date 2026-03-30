@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Party Music</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        body { background: #000; color: #fff; font-family: sans-serif; margin: 0; padding: 10px; }
+        .search { width: 100%; padding: 15px; border-radius: 25px; border: 2px solid #1DB954; background: #111; color: #fff; box-sizing: border-box; }
+        .res { background: #222; border-radius: 10px; display: none; margin: 10px 0; max-height: 200px; overflow: auto; }
+        .track { padding: 10px; border-bottom: 1px solid #333; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+        .track img { width: 40px; height: 40px; border-radius: 4px; }
+        .cols { display: flex; gap: 15px; margin-top: 20px; }
+        .col { flex: 1; }
+        .card { background: #181818; padding: 10px; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; border-left: 3px solid #1DB954; }
+        .btn { background: #1DB954; border: none; color: #fff; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; }
+        h3 { font-size: 12px; color: #1DB954; text-align: center; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+
+    <input type="text" id="sin" class="search" placeholder="Hledat písničku...">
+    <div id="sres" class="res"></div>
+
+    <div class="cols">
+        <div class="col"><h3>Fronta</h3><div id="q"></div></div>
+        <div class="col"><h3>Hraje</h3><div id="h"></div></div>
+    </div>
+
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const djId = urlParams.get('dj') || 'default';
+    const path = "requests_" + djId;
+
+    const cfg = {
+        apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
+        databaseURL: "https://hudba-na-tuhle-skvelou-party-default-rtdb.firebaseio.com",
+        projectId: "hudba-na-tuhle-skvelou-party"
+    };
+    firebase.initializeApp(cfg);
+    const db = firebase.database();
+
+    let tok = "";
+    async function getTok() {
+        const r = await fetch("https://accounts.spotify.com/api/token", {
+            method: "POST",
+            headers: { "Authorization": "Basic " + btoa("85eac0730fcf4117a259926c46305337:256e2c4254f34f779e1968025c2585e8") },
+            body: "grant_type=client_credentials"
+        });
+        const d = await r.json(); tok = d.access_token;
+    }
+    getTok();
+
+    const inEl = document.getElementById('sin');
+    const resEl = document.getElementById('sres');
+
+    inEl.oninput = () => {
+        if (inEl.value.length < 3) { resEl.style.display='none'; return; }
+        fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(inEl.value)}&type=track&limit=5`, {
+            headers: { "Authorization": "Bearer " + tok }
+        }).then(r=>r.json()).then(d=>{
+            resEl.innerHTML = "";
+            (d.tracks?.items || []).forEach(t => {
+                const div = document.createElement('div');
+                div.className = 'track';
+                div.innerHTML = `<img src="${t.album.images[2].url}"><div><b>${t.name}</b><br>${t.artists[0].name}</div>`;
+                div.onclick = () => {
+                    db.ref(path + "/" + t.id).transaction(c => {
+                        if (c) return { ...c, v: c.v + 1 };
+                        return { a: t.artists[0].name, s: t.name, i: t.album.images[2].url, v: 1, st: "w" };
+                    });
+                    inEl.value = ""; resEl.style.display='none';
+                };
+                resEl.appendChild(div);
+            });
+            resEl.style.display='block';
+        });
+    };
+
+    window.vte = (id) => db.ref(path + "/" + id + "/v").transaction(v => (v || 0) + 1);
+
+    db.ref(path).on('value', s => {
+        const d = s.val();
+        let qH = "", hH = "";
+        if (d) Object.entries(d).sort((a,b)=>b[1].v - a[1].v).forEach(([id, r]) => {
+            const html = `<div class="card">
+                <div style="display:flex;align-items:center;gap:10px;"><img src="${r.i}" width="30"><div>${r.s}</div></div>
+                <button onclick="vte('${id}')" class="btn">+</button>
+            </div>`;
+            if (r.st === "p") hH += html; else qH += html;
+        });
+        document.getElementById('q').innerHTML = qH;
+        document.getElementById('h').innerHTML = hH;
+    });
+</script>
+</body>
+</html>
