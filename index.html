@@ -8,6 +8,7 @@
     <style>
         body { background-color: #000; color: #fff; font-family: sans-serif; margin: 0; padding: 10px; }
         #dj-box { max-width: 600px; margin: auto; background: #121212; padding: 20px; border-radius: 15px; border: 1px solid #333; }
+        /* Oprava: Rámeček je v základu tmavý, zezelená až při kliknutí (focus) */
         input { width: 100%; padding: 14px; border-radius: 25px; background: #222; color: #fff; border: 2px solid #333; outline: none; box-sizing: border-box; transition: border 0.3s; }
         input:focus { border: 2px solid #1DB954; }
         .res-box { display: none; background: #252525; border-radius: 15px; margin-top: 10px; max-height: 250px; overflow-y: auto; border: 1px solid #444; }
@@ -30,6 +31,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const currentDJ = urlParams.get('dj') || "Kamillos DJ";
 document.getElementById('target-dj').innerText = currentDJ;
 
+// Konfigurace, která ti fungovala (bez regionálních chyb v té době)
 firebase.initializeApp({
     apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
     databaseURL: "https://hudba-na-tuhle-skvelou-party-default-rtdb.firebaseio.com",
@@ -71,6 +73,7 @@ input.addEventListener('input', () => {
                     d.className = "s-item";
                     d.innerHTML = `<img src="${t.album.images[2].url}"><div><b>${t.name}</b><br><small>${t.artists[0].name}</small></div>`;
                     d.onclick = () => {
+                        // Ukládání do cesty, kterou čte tvůj DJ Panel (requests_)
                         db.ref("requests_" + currentDJ + "/" + t.id).set({
                             song: t.name, artist: t.artists[0].name, img: t.album.images[2].url, votes: 1, timestamp: Date.now()
                         });
