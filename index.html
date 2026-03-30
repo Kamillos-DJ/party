@@ -25,10 +25,9 @@
     .list-column { flex: 1; min-width: 320px; }
     .req-card { position: relative; background: #222; padding: 8px 12px 8px 18px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border: 1px solid #333; overflow: hidden; }
     .req-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--bar-color, #4682B4); }
-    .list-column:first-child .req-info b { color: #ffffff !important; font-weight: 600; }
     .list-column:last-child .req-card { opacity: 0.65; background: #1a1a1a; }
     .req-info { display: flex; align-items: center; gap: 12px; overflow: hidden; }
-    .req-info b { font-size: 17px; display: block; line-height: 1.2; }
+    .req-info b { font-size: 17px; display: block; line-height: 1.2; color: #fff; }
     .req-info small { font-size: 13px; color: #bbb; }
     .req-info img { width: 45px; height: 45px; border-radius: 6px; flex-shrink: 0; }
     .v-btn { background: #1DB954; border: none; color: #fff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 18px; }
@@ -56,10 +55,9 @@
 </div>
 
 <script>
-// --- OPRAVA 1: Zjištění DJ z adresy ---
 const urlParams = new URLSearchParams(window.location.search);
-const djId = urlParams.get('dj') || 'default';
-const databasePath = "requests_" + djId; // Cesta ve Firebase pro konkrétního dýdžeje
+const djId = urlParams.get('dj') || 'Kamillos';
+const databasePath = "requests_" + djId;
 
 const BANNED = ["kurva", "kurev", "kurvo", "kurvy", "prcat", "mrd", "kund", "sranec", "stetka", "sracka", "suk", "mamrd", "debil", "chuj", "prdel", "zmrd", "pici", "pico", "picu", "pica", "picku", "picka", "curak", "kokot"];
 const ALLOWED = ["sukynka", "sukně", "nanosekund", "milisekund", "sekund", "opičk"];
@@ -75,8 +73,7 @@ const db = firebase.database();
 let sToken = "";
 async function getSToken() {
     try {
-        // --- OPRAVA 2: HTTPS u Spotify ---
-        const r = await fetch("https://googleusercontent.com/spotify.com/0", {
+        const r = await fetch("https://accounts.spotify.com/api/token", {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded", "Authorization": "Basic " + btoa("85eac0730fcf4117a259926c46305337:256e2c4254f34f779e1968025c2585e8") },
             body: "grant_type=client_credentials"
@@ -105,21 +102,17 @@ function initSearch(inputId, resId, isTidal) {
     input.addEventListener('input', (e) => {
         clearTimeout(timer);
         let v = e.target.value;
-
         if (checkBanned(v)) { 
-            clearTimeout(timer);
             document.getElementById("banned-box").style.display = "block";
             setTimeout(() => document.getElementById("banned-box").style.display = "none", 1500);
             e.target.value = ""; res.innerHTML = ""; res.style.display = "none"; 
             return; 
         }
-
         if (v.trim().length < 3) { res.style.display = "none"; return; }
 
         timer = setTimeout(() => {
             if (!sToken) return;
-            // --- OPRAVA 3: HTTPS u Spotify Search ---
-            fetch("https://googleusercontent.com/spotify.com/5" + encodeURIComponent(v) + "&type=track&limit=6", {
+            fetch("https://api.spotify.com/v1/search?q=" + encodeURIComponent(v) + "&type=track&limit=6", {
                headers: { "Authorization": "Bearer " + sToken }
             })
             .then(r => r.json())
@@ -127,22 +120,20 @@ function initSearch(inputId, resId, isTidal) {
                 if (input.value === "") { res.style.display = "none"; return; }
                 res.innerHTML = "";
                 const tracks = (j.tracks && j.tracks.items) ? j.tracks.items : [];
-                if (tracks.length > 0) {
-                    res.style.display = "block";
-                    tracks.forEach(t => {
-                        const img = (t.album.images && t.album.images[2]) ? t.album.images[2].url : "";
-                        const div = document.createElement("div");
-                        div.className = "s-item";
-                        div.innerHTML = '<img src="' + img + '"><div><b>' + t.name + '</b><small>' + t.artists[0].name + '</small></div>';
-                        div.onclick = () => {
-                            const query = encodeURIComponent(t.artists[0].name + " " + t.name);
-                            const tLink = isTidal ? "https://listen.tidal.com/search?q=" + query : "";
-                            sendReq(t.artists[0].name, t.name, img, t.id, tLink);
-                            input.value = ""; res.style.display = "none";
-                        };
-                        res.appendChild(div);
-                   });
-                } else { res.style.display = "none"; }
+                tracks.forEach(t => {
+                    const img = (t.album.images && t.album.images[2]) ? t.album.images[2].url : "";
+                    const div = document.createElement("div");
+                    div.className = "s-item";
+                    div.innerHTML = '<img src="' + img + '"><div><b>' + t.name + '</b><small>' + t.artists[0].name + '</small></div>';
+                    div.onclick = () => {
+                        const query = encodeURIComponent(t.artists[0].name + " " + t.name);
+                        const tLink = isTidal ? "https://listen.tidal.com/search?q=" + query : "";
+                        sendReq(t.artists[0].name, t.name, img, t.id, tLink);
+                        input.value = ""; res.style.display = "none";
+                    };
+                    res.appendChild(div);
+                });
+                res.style.display = "block";
             });
         }, 400);
     });
@@ -153,7 +144,6 @@ initSearch('i-tidal', 'r-tidal', true);
 
 function sendReq(a, s, i, id, tidalLink = "") {
     if (localStorage.getItem("v_" + id)) return;
-    // --- OPRAVA 4: Změna cesty na dynamické DJ ID ---
     db.ref(databasePath + "/" + id).transaction(curr => {
         if (curr) return { ...curr, votes: (curr.votes || 0) + 1 };
         return { artist: a, song: s, img: i, votes: 1, status: "waiting", time: Date.now(), tidal: tidalLink };
@@ -165,14 +155,14 @@ window.vote = (id) => {
     db.ref(databasePath + "/" + id + "/votes").transaction(v => (v || 0) + 1, () => localStorage.setItem("v_" + id, "1"));
 };
 
-// --- OPRAVA 5: Načítání z dynamické cesty ---
 db.ref(databasePath).on("value", snap => {
     const val = snap.val();
     let lH = "", hH = "";
     if (val) {
         Object.entries(val).sort((a,b) => (b[1].votes||0) - (a[1].votes||0)).forEach(([id, d]) => {
             const vtd = localStorage.getItem("v_" + id);
-            const card = '<div class="req-card" style="--bar-color: ' + (d.status === 'accepted' ? '#1DB954' : d.status === 'rejected' ? '#f44' : (d.status === 'played' ? '#666' : '#4682B4')) + '">' +
+            const color = (d.status === 'accepted' ? '#1DB954' : (d.status === 'rejected' ? '#f44' : (d.status === 'played' ? '#666' : '#4682B4')));
+            const card = '<div class="req-card" style="--bar-color: ' + color + '">' +
                 '<div class="req-info"><img src="' + d.img + '"><div><b>' + d.song + '</b><small>' + d.artist + '</small></div></div>' +
                 '<div style="display:flex;align-items:center;gap:12px;"><b>' + (d.votes||0) + '</b>' + (d.status !== 'played' ? '<button onclick="vote(\'' + id + '\')" class="v-btn ' + (vtd?'voted':'') + '">+</button>' : '') + '</div>' +
             '</div>';
