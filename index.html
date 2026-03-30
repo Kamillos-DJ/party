@@ -31,6 +31,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const currentDJ = urlParams.get('dj') || "Kamillos DJ";
 document.getElementById('target-dj').innerText = currentDJ;
 
+// Opravená URL databáze podle hlášení v konzoli
 firebase.initializeApp({
     apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
     authDomain: "hudba-na-tuhle-skvelou-party.firebaseapp.com",
@@ -42,14 +43,8 @@ const db = firebase.database();
 let sToken = "";
 async function getSToken() {
     try {
-        const r = await fetch("https://accounts.spotify.com/api/token", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-                "Authorization": "Basic " + btoa("85eac0730fcf4117a259926c46305337:256e2c4254f34f779e1968025c2585e8")
-            },
-            body: "grant_type=client_credentials"
-        });
+        // Používáme stabilnější způsob získání tokenu
+        const r = await fetch("https://worker-proud-sun-3351.kamillo.workers.dev/token");
         const d = await r.json();
         sToken = d.access_token;
     } catch(e) { console.error("Spotify Auth Error"); }
@@ -68,6 +63,7 @@ input.addEventListener('input', () => {
     timer = setTimeout(async () => {
         if (!sToken) await getSToken();
         try {
+            // Opravené volání Spotify bez problematických proxy
             const r = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=6`, {
                 headers: { "Authorization": "Bearer " + sToken }
             });
