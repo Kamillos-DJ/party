@@ -3,101 +3,157 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Party Music</title>
+    <title>Party Music Pro</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
-        body { background: #000; color: #fff; font-family: sans-serif; margin: 0; padding: 10px; }
-        .search { width: 100%; padding: 15px; border-radius: 25px; border: 2px solid #1DB954; background: #111; color: #fff; box-sizing: border-box; font-size: 16px; outline: none; }
-        .res { background: #222; border-radius: 10px; display: none; margin: 10px 0; max-height: 300px; overflow-y: auto; border: 1px solid #444; }
-        .track { padding: 10px; border-bottom: 1px solid #333; cursor: pointer; display: flex; align-items: center; gap: 10px; }
-        .track img { width: 45px; height: 45px; border-radius: 4px; }
-        .cols { display: flex; gap: 15px; margin-top: 20px; }
-        .col { flex: 1; }
-        .card { background: #181818; padding: 10px; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; border-left: 4px solid #1DB954; }
-        .btn { background: #1DB954; border: none; color: #fff; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; font-weight: bold; }
-        h3 { font-size: 12px; color: #1DB954; text-align: center; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        :root { --spotify-green: #1DB954; --dark-bg: #121212; --card-bg: #181818; --hover-bg: #282828; }
+        body { background-color: #000; color: #fff; font-family: 'Circular', 'Segoe UI', sans-serif; margin: 0; padding: 15px; }
+        
+        /* Vyhledávací pole */
+        .search-box { position: sticky; top: 0; background: #000; padding: 10px 0 20px 0; z-index: 100; }
+        .search-input { width: 100%; padding: 18px 25px; border-radius: 50px; border: 2px solid var(--spotify-green); background: var(--dark-bg); color: #fff; font-size: 16px; box-sizing: border-box; transition: box-shadow 0.3s; }
+        .search-input:focus { box-shadow: 0 0 15px rgba(29, 185, 84, 0.4); outline: none; }
+        
+        /* Výsledky hledání */
+        .results { background: var(--card-bg); border-radius: 15px; display: none; margin-top: 10px; max-height: 400px; overflow-y: auto; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.7); }
+        .t-row { padding: 12px 15px; border-bottom: 1px solid #282828; cursor: pointer; display: flex; align-items: center; gap: 15px; transition: background 0.2s; }
+        .t-row:hover { background: var(--hover-bg); }
+        .t-row img { width: 50px; height: 50px; border-radius: 4px; }
+        .t-info b { display: block; font-size: 15px; margin-bottom: 3px; }
+        .t-info small { color: #b3b3b3; font-size: 13px; }
+
+        /* Mřížka pro Frontu a Hraje */
+        .main-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 10px; }
+        @media (max-width: 600px) { .main-layout { grid-template-columns: 1fr; } }
+        
+        .section-title { font-size: 13px; color: var(--spotify-green); text-transform: uppercase; letter-spacing: 2px; text-align: center; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        
+        /* Karty písniček */
+        .song-card { background: var(--card-bg); padding: 12px; margin-bottom: 12px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--spotify-green); animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+        
+        .song-details { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .song-details img { width: 45px; height: 45px; border-radius: 6px; flex-shrink: 0; }
+        .song-text { overflow: hidden; }
+        .song-text b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
+        .song-text small { color: #b3b3b3; font-size: 12px; }
+        
+        .vote-section { display: flex; align-items: center; gap: 10px; }
+        .vote-count { font-weight: bold; color: var(--spotify-green); font-size: 18px; min-width: 20px; text-align: center; }
+        .plus-btn { background: var(--spotify-green); border: none; color: #fff; border-radius: 50%; width: 36px; height: 36px; cursor: pointer; font-size: 20px; font-weight: bold; transition: transform 0.2s; }
+        .plus-btn:active { transform: scale(0.85); }
+        
+        /* Empty states */
+        .empty-msg { text-align: center; color: #555; font-style: italic; font-size: 13px; margin-top: 20px; }
     </style>
 </head>
 <body>
 
-    <input type="text" id="sin" class="search" placeholder="Hledat písničku na Spotify...">
-    <div id="sres" class="res"></div>
+    <div class="search-box">
+        <input type="text" id="sin" class="search-input" placeholder="Hledat a přidat písničku...">
+        <div id="sres" class="results"></div>
+    </div>
 
-    <div class="cols">
-        <div class="col"><h3>🔥 FRONTA</h3><div id="q"></div></div>
-        <div class="col"><h3>✅ ODEHRÁNO</h3><div id="h"></div></div>
+    <div class="main-layout">
+        <div class="column">
+            <div class="section-title">🔥 Aktuální Fronta</div>
+            <div id="q"></div>
+        </div>
+        <div class="column">
+            <div class="section-title">✅ Právě Hraje / Odehráno</div>
+            <div id="h"></div>
+        </div>
     </div>
 
 <script>
+    // Konfigurace
     const urlParams = new URLSearchParams(window.location.search);
     const djId = urlParams.get('dj') || 'default';
     const path = "requests_" + djId;
 
-    const cfg = {
+    const firebaseConfig = {
         apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
         databaseURL: "https://hudba-na-tuhle-skvelou-party-default-rtdb.firebaseio.com",
         projectId: "hudba-na-tuhle-skvelou-party"
     };
-    if (!firebase.apps.length) firebase.initializeApp(cfg);
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
+    // Spotify Auth
     let tok = "";
     async function getTok() {
-        const r = await fetch("https://accounts.spotify.com/api/token", {
-            method: "POST",
-            headers: { 
-                "Content-Type": "application/x-www-form-urlencoded",
-                "Authorization": "Basic " + btoa("85eac0730fcf4117a259926c46305337:256e2c4254f34f779e1968025c2585e8") 
-            },
-            body: "grant_type=client_credentials"
-        });
-        const d = await r.json(); tok = d.access_token;
+        try {
+            const r = await fetch("https://accounts.spotify.com/api/token", {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Authorization": "Basic " + btoa("85eac0730fcf4117a259926c46305337:256e2c4254f34f779e1968025c2585e8") 
+                },
+                body: "grant_type=client_credentials"
+            });
+            const d = await r.json(); tok = d.access_token;
+        } catch(e) {}
     }
     getTok();
 
+    // Search Logic
     const inEl = document.getElementById('sin');
     const resEl = document.getElementById('sres');
+    let timer;
 
     inEl.oninput = () => {
+        clearTimeout(timer);
         if (inEl.value.length < 3) { resEl.style.display='none'; return; }
-        fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(inEl.value)}&type=track&limit=6`, {
-            headers: { "Authorization": "Bearer " + tok }
-        }).then(r=>r.json()).then(d=>{
-            resEl.innerHTML = "";
-            (d.tracks?.items || []).forEach(t => {
-                const div = document.createElement('div');
-                div.className = 'track';
-                div.innerHTML = `<img src="${t.album.images[2]?.url}"><div><b>${t.name}</b><br>${t.artists[0].name}</div>`;
-                div.onclick = () => {
-                    db.ref(path + "/" + t.id).transaction(c => {
-                        if (c) return { ...c, v: (c.v || 1) + 1 };
-                        return { a: t.artists[0].name, s: t.name, i: t.album.images[2]?.url, v: 1, st: "w" };
-                    }).catch(e => console.error("Firebase Error:", e));
-                    inEl.value = ""; resEl.style.display='none';
-                };
-                resEl.appendChild(div);
+        timer = setTimeout(() => {
+            fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(inEl.value)}&type=track&limit=8`, {
+                headers: { "Authorization": "Bearer " + tok }
+            }).then(r=>r.json()).then(d=>{
+                resEl.innerHTML = "";
+                const items = d.tracks?.items || [];
+                if (items.length > 0) {
+                    resEl.style.display='block';
+                    items.forEach(t => {
+                        const row = document.createElement('div');
+                        row.className = 't-row';
+                        row.innerHTML = `<img src="${t.album.images[2]?.url || ''}"><div class="t-info"><b>${t.name}</b><small>${t.artists[0].name}</small></div>`;
+                        row.onclick = () => {
+                            db.ref(path + "/" + t.id).transaction(c => {
+                                if (c) return { ...c, v: (c.v || 1) + 1 };
+                                return { a: t.artists[0].name, s: t.name, i: t.album.images[2]?.url || '', v: 1, st: "w" };
+                            });
+                            inEl.value = ""; resEl.style.display='none';
+                        };
+                        resEl.appendChild(row);
+                    });
+                }
             });
-            resEl.style.display='block';
-        });
+        }, 400);
     };
 
     window.vte = (id) => db.ref(path + "/" + id + "/v").transaction(v => (v || 0) + 1);
 
+    // Live Render
     db.ref(path).on('value', s => {
         const d = s.val();
         let qH = "", hH = "";
         if (d) {
             Object.entries(d).sort((a,b)=> (b[1].v || 0) - (a[1].v || 0)).forEach(([id, r]) => {
-                const html = `<div class="card">
-                    <div style="display:flex;align-items:center;gap:10px;"><img src="${r.i}" width="30"><div><b>${r.s}</b><br><small>${r.a}</small></div></div>
-                    <div style="text-align:right"><b>${r.v}</b><br><button onclick="vte('${id}')" class="btn">+</button></div>
+                const card = `<div class="song-card">
+                    <div class="song-details">
+                        <img src="${r.i}">
+                        <div class="song-text"><b>${r.s}</b><small>${r.a}</small></div>
+                    </div>
+                    <div class="vote-section">
+                        <span class="vote-count">${r.v || 1}</span>
+                        <button onclick="vte('${id}')" class="plus-btn">+</button>
+                    </div>
                 </div>`;
-                if (r.st === "p") hH += html; else qH += html;
+                if (r.st === "p") hH += card; else qH += card;
             });
         }
-        document.getElementById('q').innerHTML = qH || "<p style='color:#666;text-align:center'>Fronta je prázdná</p>";
-        document.getElementById('h').innerHTML = hH || "<p style='color:#666;text-align:center'>Zatím nic</p>";
+        document.getElementById('q').innerHTML = qH || "<div class='empty-msg'>Zatím tu nic není. Přidej první pecku!</div>";
+        document.getElementById('h').innerHTML = hH || "<div class='empty-msg'>Zatím se nic nehrálo.</div>";
     });
 </script>
 </body>
