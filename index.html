@@ -8,23 +8,18 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <style>
         body { background-color: #000; color: #fff; font-family: sans-serif; margin: 0; padding: 10px; }
-        #dj-box { max-width: 800px; margin: auto; background: #121212; padding: 20px; border-radius: 15px; border: 1px solid #333; }
-        input[type="text"] { width: 100%; padding: 15px; border-radius: 25px; background: #222; color: #fff; border: 2px solid #1DB954; box-sizing: border-box; margin-bottom: 10px; font-size: 16px; }
+        #dj-box { max-width: 1000px; margin: auto; background: #121212; padding: 25px; border-radius: 20px; border: 1px solid #333; }
+        input[type="text"] { width: 100%; padding: 14px 20px; border-radius: 25px; background: #222; color: #fff; box-sizing: border-box; font-size: 16px; outline: none; border: 2px solid #1DB954; margin-bottom: 10px; }
         #i-tidal { border-color: #00FFFF; }
-        .res-box { background: #252525; border-radius: 10px; margin-bottom: 20px; display: none; border: 1px solid #444; max-height: 300px; overflow-y: auto; }
-        .s-item { padding: 10px; display: flex; align-items: center; gap: 10px; cursor: pointer; border-bottom: 1px solid #333; }
-        .s-item:hover { background: #333; }
-        .s-item img { width: 40px; height: 40px; border-radius: 4px; }
-        .s-item div { display: flex; flex-direction: column; }
-        .s-item b { font-size: 15px; }
-        .s-item small { color: #aaa; }
-        .lists { display: flex; gap: 20px; margin-top: 20px; flex-wrap: wrap; }
-        .col { flex: 1; min-width: 300px; }
-        .req-card { background: #222; padding: 10px; border-radius: 10px; display: flex; align-items: center; gap: 10px; margin-bottom: 8px; border-left: 5px solid #4682B4; }
-        .req-card.played { border-left-color: #666; opacity: 0.6; }
-        .req-card img { width: 45px; height: 45px; border-radius: 4px; }
-        .v-btn { background: #1DB954; border: none; color: #fff; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-weight: bold; font-size: 18px; }
-        h3 { font-size: 13px; color: #1DB954; text-transform: uppercase; text-align: center; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        .res-box { display: none; background: #252525; border-radius: 15px; margin-top: 5px; max-height: 300px; overflow-y: auto; border: 1px solid #444; margin-bottom: 20px; }
+        .s-item { padding: 10px 18px; display: flex; align-items: center; gap: 12px; cursor: pointer; border-bottom: 1px solid #333; }
+        .s-item img { width: 40px; height: 40px; border-radius: 6px; }
+        .lists-container { display: flex; gap: 20px; margin-top: 30px; flex-wrap: wrap; }
+        .list-column { flex: 1; min-width: 320px; }
+        .req-card { background: #222; padding: 10px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border: 1px solid #333; }
+        .req-card img { width: 45px; height: 45px; border-radius: 6px; margin-right: 10px; }
+        .v-btn { background: #1DB954; border: none; color: #fff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 18px; }
+        h3 { color: #1DB954; font-size: 13px; text-transform: uppercase; text-align: center; border-bottom: 1px solid #333; padding-bottom: 8px; }
     </style>
 </head>
 <body>
@@ -36,80 +31,97 @@
     <input type="text" id="i-tidal" placeholder="Hledat na Tidalu...">
     <div id="r-tidal" class="res-box"></div>
 
-    <div class="lists">
-        <div class="col"><h3>🔥 FRONTA</h3><div id="l"></div></div>
-        <div class="col"><h3>✅ ODEHRÁNO</h3><div id="h"></div></div>
+    <div class="lists-container">
+        <div class="list-column"><h3>🔥 FRONTA</h3><div id="l"></div></div>
+        <div class="list-column"><h3>✅ ODEHRÁNO</h3><div id="h"></div></div>
     </div>
 </div>
 
 <script>
-const cast1 = "https://worker-proud-sun-3351";
-const cast2 = ".kamillos-dj.workers.dev";
-const API = cast1 + cast2;
-console.log("AKTUALIZOVANO: " + API);
-    
-firebase.initializeApp({
+// Firebase konfigurace (zůstává stejná)
+const cfg = {
     apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
     databaseURL: "https://hudba-na-tuhle-skvelou-party-default-rtdb.firebaseio.com",
     projectId: "hudba-na-tuhle-skvelou-party"
-});
+};
+firebase.initializeApp(cfg);
 const db = firebase.database();
 
-let token = "";
-async function getToken() {
+let sToken = "";
+
+// OPRAVA: Získání tokenu přímo ze Spotify API (přes tvé ID a Secret)
+async function getSToken() {
     try {
-        const res = await fetch(API + "/token");
+        const res = await fetch("https://accounts.spotify.com/api/token", {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Authorization": "Basic " + btoa("85eac0730fcf4117a259926c46305337:256e2c4254f34f779e1968025c2585e8")
+            },
+            body: "grant_type=client_credentials"
+        });
         const data = await res.json();
-        token = data.access_token;
-    } catch(e) { console.error("Chyba API:", e); }
+        sToken = data.access_token;
+    } catch(e) { console.log("Spotify Auth error"); }
 }
-getToken();
+getSToken();
 
-function setupSearch(inputId, resId) {
+function initSearch(inputId, resId, isTidal) {
     const input = document.getElementById(inputId);
-    const resDiv = document.getElementById(resId);
-    let timeout;
+    const res = document.getElementById(resId);
+    let timer;
 
-    input.oninput = () => {
-        clearTimeout(timeout);
-        if (input.value.length < 3 || !token) return;
-        
-        timeout = setTimeout(async () => {
-            const r = await fetch(API + "/search?query=" + encodeURIComponent(input.value));
-            const j = await r.json();
-            resDiv.innerHTML = "";
-            resDiv.style.display = "block";
-            (j.tracks?.items || []).forEach(t => {
-                const img = t.album.images[2]?.url || "";
-                const d = document.createElement("div");
-                d.className = "s-item";
-                d.innerHTML = `<img src="${img}"><div><b>${t.name}</b><small>${t.artists[0].name}</small></div>`;
-                d.onclick = () => {
-                    db.ref("requests/" + t.id).transaction(curr => {
-                        if (curr) return { ...curr, votes: curr.votes + 1 };
-                        return { song: t.name, artist: t.artists[0].name, img: img, votes: 1, status: "waiting" };
-                    });
-                    input.value = ""; resDiv.style.display = "none";
-                };
-                resDiv.appendChild(d);
+    input.addEventListener('input', (e) => {
+        clearTimeout(timer);
+        let v = e.target.value;
+        if (v.trim().length < 3) { res.style.display = "none"; return; }
+
+        timer = setTimeout(async () => {
+            if (!sToken) return;
+            // OPRAVA: Volání skutečného Spotify vyhledávání
+            const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(v)}&type=track&limit=6`, {
+                headers: { "Authorization": "Bearer " + sToken }
             });
-        }, 300);
-    };
+            const j = await response.json();
+            
+            res.innerHTML = "";
+            const tracks = (j.tracks && j.tracks.items) ? j.tracks.items : [];
+            if (tracks.length > 0) {
+                res.style.display = "block";
+                tracks.forEach(t => {
+                    const img = t.album.images[2]?.url || "";
+                    const div = document.createElement("div");
+                    div.className = "s-item";
+                    div.innerHTML = `<img src="${img}"><div><b>${t.name}</b><br><small>${t.artists[0].name}</small></div>`;
+                    div.onclick = () => {
+                        db.ref("requests/" + t.id).transaction(curr => {
+                            if (curr) return { ...curr, votes: (curr.votes || 0) + 1 };
+                            return { artist: t.artists[0].name, song: t.name, img: img, votes: 1, status: "waiting" };
+                        });
+                        input.value = ""; res.style.display = "none";
+                    };
+                    res.appendChild(div);
+                });
+            } else { res.style.display = "none"; }
+        }, 400);
+    });
 }
 
-setupSearch("i", "r");
-setupSearch("i-tidal", "r-tidal");
+initSearch('i', 'r', false);
+initSearch('i-tidal', 'r-tidal', true);
 
 db.ref("requests").on("value", snap => {
     let lH = "", hH = "";
     const items = Object.entries(snap.val() || {}).sort((a,b) => b[1].votes - a[1].votes);
     items.forEach(([id, d]) => {
-        const html = `<div class="req-card ${d.status === 'played' ? 'played' : ''}">
-            <img src="${d.img}">
-            <div style="flex:1"><b>${d.song}</b><br><small>${d.artist}</small></div>
-            <div style="display:flex;align-items:center;gap:10px;">
+        const html = `<div class="req-card">
+            <div style="display:flex;align-items:center">
+                <img src="${d.img}">
+                <div><b>${d.song}</b><br><small>${d.artist}</small></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
                 <b>${d.votes}</b>
-                ${d.status !== 'played' ? `<button class="v-btn" onclick="vote('${id}')">+</button>` : ''}
+                <button onclick="db.ref('requests/${id}/votes').transaction(v => (v||0)+1)" class="v-btn">+</button>
             </div>
         </div>`;
         if (d.status === "played") hH += html; else lH += html;
@@ -117,8 +129,6 @@ db.ref("requests").on("value", snap => {
     document.getElementById("l").innerHTML = lH;
     document.getElementById("h").innerHTML = hH;
 });
-
-window.vote = (id) => db.ref("requests/" + id + "/votes").transaction(v => (v || 0) + 1);
 </script>
 </body>
 </html>
