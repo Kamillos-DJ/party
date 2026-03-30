@@ -7,38 +7,34 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <style>
-        body { background-color: #000; color: #fff; font-family: 'Inter', sans-serif; margin: 0; padding: 10px; -webkit-font-smoothing: antialiased; }
+        body { background-color: #000; color: #fff; font-family: 'Inter', sans-serif; margin: 0; padding: 10px; }
         #dj-box { max-width: 1000px; margin: auto; background: #121212; padding: 25px; border-radius: 20px; border: 1px solid #333; }
         .search-container { display: flex; flex-direction: column; gap: 15px; }
         .search-wrapper { position: relative; width: 100%; }
         input[type="text"] { width: 100%; padding: 14px 20px; border-radius: 25px; background: #222; color: #fff; box-sizing: border-box; font-size: 16px; outline: none; border: 1px solid #333; }
         #i { border: 2px solid #1DB954; } 
         #i-tidal { border: 2px solid #00FFFF; }
-        .tidal-label { color: #00FFFF; font-size: 13px; margin-bottom: 5px; margin-left: 15px; font-weight: 300; }
-        #banned-box { display: none; width: 100%; padding: 10px; border-radius: 12px; border: 2px solid #ff4444; background: #330000; color: #fff; box-sizing: border-box; margin: 8px 0; font-size: 14px; text-align: center; font-weight: bold; z-index: 10000; }
+        .tidal-label { color: #00FFFF; font-size: 13px; margin-bottom: 5px; margin-left: 15px; }
         
-        /* Styl pro texty pod sebou v našeptávači */
         .res-box { display: none; position: absolute; top: 100%; left: 0; right: 0; background: #252525; border-radius: 15px; margin-top: 5px; max-height: 300px; overflow-y: auto; border: 1px solid #444; z-index: 9999; }
         .s-item { padding: 10px 18px; display: flex; align-items: center; gap: 12px; cursor: pointer; border-bottom: 1px solid #333; }
         .s-item:hover { background: #333; }
         .s-item img { width: 40px; height: 40px; border-radius: 6px; }
-        .s-item b { display: block; font-size: 16px; color: #fff; line-height: 1.2; }
+        .s-item b { display: block; font-size: 16px; color: #fff; }
         .s-item small { color: #aaa; font-size: 13px; }
 
         .lists-container { display: flex; gap: 20px; margin-top: 30px; flex-wrap: wrap; }
         .list-column { flex: 1; min-width: 320px; }
         .req-card { position: relative; background: #222; padding: 8px 12px 8px 18px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border: 1px solid #333; overflow: hidden; }
-        
-        /* Barva proužku: Modrá pro nové, šedá pro odehrané */
+        /* Modrý proužek pro frontu, šedý pro historii */
         .req-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--bar-color, #4682B4); }
         
-        .req-info { display: flex; align-items: center; gap: 12px; overflow: hidden; }
-        .req-info b { font-size: 17px; display: block; line-height: 1.2; }
+        .req-info { display: flex; align-items: center; gap: 12px; }
+        .req-info b { font-size: 17px; display: block; }
         .req-info small { font-size: 13px; color: #bbb; }
-        .req-info img { width: 45px; height: 45px; border-radius: 6px; flex-shrink: 0; }
+        .req-info img { width: 45px; height: 45px; border-radius: 6px; }
         .v-btn { background: #1DB954; border: none; color: #fff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 18px; }
-        .voted { opacity: 0.2; pointer-events: none; }
-        h3 { color: #1DB954; font-size: 13px; text-transform: uppercase; text-align: center; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 15px; }
+        h3 { color: #1DB954; font-size: 13px; text-transform: uppercase; text-align: center; border-bottom: 1px solid #333; padding-bottom: 8px; }
     </style>
 </head>
 <body>
@@ -46,12 +42,11 @@
 <div id="dj-box">
     <div class="search-container">
         <div class="search-wrapper">
-            <input type="text" id="i" placeholder="Hledat a poslat přes Spotify...">
+            <input type="text" id="i" placeholder="Hledat na Spotify...">
             <div id="r" class="res-box"></div>
         </div>
-        <div id="banned-box">Vulgární výrazy nejsou povoleny!</div>
         <div class="search-wrapper">
-            <div class="tidal-label">Hledat a poslat přes Tidal:</div>
+            <div class="tidal-label">Hledat na Tidalu:</div>
             <input type="text" id="i-tidal" placeholder="Hledat na Tidalu...">
             <div id="r-tidal" class="res-box"></div>
         </div>
@@ -63,11 +58,8 @@
 </div>
 
 <script>
-// OPRAVENÁ ADRESA WORKERU
+// TADY JE TA CELÁ ADRESA, KTERÁ TI CHYBĚLA:
 const BASE_URL = "https://worker-proud-sun-3351.kamillos-dj.workers.dev";
-
-const BANNED = ["kurva", "kurev", "kurvo", "kurvy", "prcat", "mrd", "kund", "sranec", "stetka", "sracka", "suk", "mamrd", "debil", "chuj", "prdel", "zmrd", "pici", "pico", "picu", "pica", "picku", "picka", "curak", "kokot"];
-const ALLOWED = ["sukynka", "sukně", "nanosekund", "milisekund", "sekund", "opičk"];
 
 firebase.initializeApp({
     apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
@@ -79,22 +71,14 @@ const db = firebase.database();
 let sToken = "";
 async function getSToken() {
     try {
-        const r = await fetch(`${BASE_URL}/token`);
-        const d = await r.json();
-        sToken = d.access_token;
-    } catch(e) { console.log("Auth error"); }
+        const response = await fetch(BASE_URL + "/token");
+        const data = await response.json();
+        sToken = data.access_token;
+    } catch(e) { 
+        console.error("Chyba při získávání tokenu:", e); 
+    }
 }
 getSToken();
-
-function checkBanned(text) {
-    let normalized = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    let words = normalized.replace(/[.,!?;:]/g, "").split(/\s+/);
-    return words.some(word => {
-        let cleanWord = word;
-        ALLOWED.forEach(a => { cleanWord = cleanWord.split(a.normalize("NFD").replace(/[\u0300-\u036f]/g, "")).join(""); });
-        return BANNED.some(b => cleanWord.includes(b.normalize("NFD").replace(/[\u0300-\u036f]/g, "")));
-    });
-}
 
 function initSearch(inputId, resId, isTidal) {
     const input = document.getElementById(inputId);
@@ -104,39 +88,29 @@ function initSearch(inputId, resId, isTidal) {
     input.addEventListener('input', (e) => {
         clearTimeout(timer);
         let v = e.target.value;
-        if (checkBanned(v)) { 
-            document.getElementById("banned-box").style.display = "block";
-            setTimeout(() => document.getElementById("banned-box").style.display = "none", 1500);
-            e.target.value = ""; res.innerHTML = ""; res.style.display = "none"; 
-            return; 
-        }
         if (v.trim().length < 3) { res.style.display = "none"; return; }
 
         timer = setTimeout(() => {
             if (!sToken) return;
-            fetch(`${BASE_URL}/search?query=${encodeURIComponent(v)}&type=track&limit=6`)
+            fetch(BASE_URL + "/search?query=" + encodeURIComponent(v))
             .then(r => r.json())
             .then(j => {
-                if (input.value === "") { res.style.display = "none"; return; }
                 res.innerHTML = "";
-                const tracks = (j.tracks && j.tracks.items) ? j.tracks.items : [];
+                const tracks = j.tracks?.items || [];
                 if (tracks.length > 0) {
                     res.style.display = "block";
                     tracks.forEach(t => {
-                        const img = (t.album.images && t.album.images[2]) ? t.album.images[2].url : "";
+                        const img = t.album.images[2]?.url || "";
                         const div = document.createElement("div");
                         div.className = "s-item";
-                        // Původní struktura našeptávače pro texty pod sebou
                         div.innerHTML = `<img src="${img}"><div><b>${t.name}</b><small>${t.artists[0].name}</small></div>`;
                         div.onclick = () => {
-                            const query = encodeURIComponent(t.artists[0].name + " " + t.name);
-                            const tLink = isTidal ? "https://listen.tidal.com/search?q=" + query : "";
-                            sendReq(t.artists[0].name, t.name, img, t.id, tLink);
+                            sendReq(t.artists[0].name, t.name, img, t.id);
                             input.value = ""; res.style.display = "none";
                         };
                         res.appendChild(div);
                     });
-                } else { res.style.display = "none"; }
+                }
             });
         }, 400);
     });
@@ -145,11 +119,11 @@ function initSearch(inputId, resId, isTidal) {
 initSearch('i', 'r', false);
 initSearch('i-tidal', 'r-tidal', true);
 
-function sendReq(a, s, i, id, tidalLink = "") {
+function sendReq(a, s, i, id) {
     if (localStorage.getItem("v_" + id)) return;
     db.ref("requests/" + id).transaction(curr => {
         if (curr) return { ...curr, votes: (curr.votes || 0) + 1 };
-        return { artist: a, song: s, img: i, votes: 1, status: "waiting", time: Date.now(), tidal: tidalLink };
+        return { artist: a, song: s, img: i, votes: 1, status: "waiting", time: Date.now() };
     }, () => localStorage.setItem("v_" + id, "1"));
 }
 
@@ -163,12 +137,10 @@ db.ref("requests").on("value", snap => {
     let lH = "", hH = "";
     if (val) {
         Object.entries(val).sort((a,b) => b[1].votes - a[1].votes).forEach(([id, d]) => {
-            const vtd = localStorage.getItem("v_" + id);
-            // Nastavení barvy proužku
             const bar = d.status === 'played' ? '#666' : '#4682B4';
             const card = `<div class="req-card" style="--bar-color: ${bar}">
                 <div class="req-info"><img src="${d.img}"><div><b>${d.song}</b><small>${d.artist}</small></div></div>
-                <div style="display:flex;align-items:center;gap:12px;"><b>${d.votes||0}</b>${d.status !== 'played' ? `<button onclick="vote('${id}')" class="v-btn ${vtd?'voted':''}">+</button>` : ''}</div>
+                <div style="display:flex;align-items:center;gap:12px;"><b>${d.votes||0}</b>${d.status !== 'played' ? `<button onclick="vote('${id}')" class="v-btn">+</button>` : ''}</div>
             </div>`;
             if (d.status === "played") hH += card; else lH += card;
         });
