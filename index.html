@@ -10,40 +10,37 @@
         body { background-color: #000; color: #fff; font-family: 'Inter', sans-serif; margin: 0; padding: 10px; }
         #dj-box { max-width: 1000px; margin: auto; background: #121212; padding: 25px; border-radius: 20px; border: 1px solid #333; }
         
-        /* VYHLEDÁVÁNÍ */
         .search-container { display: flex; flex-direction: column; gap: 15px; }
         .search-wrapper { position: relative; width: 100%; }
-        input[type="text"] { width: 100%; padding: 14px 20px; border-radius: 25px; background: #222; color: #fff; box-sizing: border-box; font-size: 16px; outline: none; border: 2px solid #333; }
+        input[type="text"] { width: 100%; padding: 14px 20px; border-radius: 25px; background: #222; color: #fff; box-sizing: border-box; font-size: 16px; outline: none; border: 2px solid #444; }
         #i { border-color: #1DB954; } 
         #i-tidal { border-color: #00FFFF; }
 
-        /* NAŠEPTVÁVAČ - Texty pod sebou */
+        /* NAŠEPTVÁVAČ - Oprava: Texty pod sebou */
         .res-box { display: none; position: absolute; top: 100%; left: 0; right: 0; background: #252525; border-radius: 15px; margin-top: 5px; max-height: 400px; overflow-y: auto; border: 1px solid #444; z-index: 9999; }
         .s-item { padding: 12px 18px; display: flex; align-items: center; gap: 15px; cursor: pointer; border-bottom: 1px solid #333; }
         .s-item:hover { background: #333; }
         .s-item img { width: 45px; height: 45px; border-radius: 6px; flex-shrink: 0; }
-        .s-text { display: flex; flex-direction: column; }
-        .s-text b { font-size: 15px; color: #fff; line-height: 1.2; }
-        .s-text small { color: #aaa; font-size: 13px; margin-top: 2px; }
+        .s-text { display: flex; flex-direction: column; text-align: left; }
+        .s-text b { font-size: 15px; color: #fff; line-height: 1.2; display: block; }
+        .s-text small { color: #aaa; font-size: 13px; margin-top: 2px; display: block; }
 
-        /* SEZNAMY A PROUŽKY */
+        /* FRONTA A ODEHRÁNO - Proužky a texty */
         .lists-container { display: flex; gap: 20px; margin-top: 30px; flex-wrap: wrap; }
         .list-column { flex: 1; min-width: 320px; }
-        .req-card { position: relative; background: #222; padding: 12px 16px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; border: 1px solid #333; padding-left: 20px; }
+        .req-card { position: relative; background: #222; padding: 12px 16px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; border: 1px solid #333; padding-left: 20px; overflow: hidden; }
         
-        /* Barevný proužek na boku */
-        .req-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--bar-color, #4682B4); border-radius: 12px 0 0 12px; }
+        /* Proužek na straně */
+        .req-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--pruzek, #4682B4); }
         
         .req-info { display: flex; align-items: center; gap: 15px; }
-        .req-info img { width: 50px; height: 50px; border-radius: 6px; }
-        .req-details { display: flex; flex-direction: column; }
-        .req-details b { font-size: 16px; color: #fff; }
-        .req-details small { color: #bbb; font-size: 13px; }
+        .req-info img { width: 50px; height: 50px; border-radius: 6px; flex-shrink: 0; }
+        .req-details { display: flex; flex-direction: column; text-align: left; }
+        .req-details b { font-size: 15px; color: #fff; display: block; }
+        .req-details small { color: #bbb; font-size: 13px; display: block; }
 
-        .vote-section { display: flex; align-items: center; gap: 12px; }
         .v-btn { background: #1DB954; border: none; color: #fff; width: 38px; height: 38px; border-radius: 50%; cursor: pointer; font-size: 20px; font-weight: bold; }
-        .vote-count { font-size: 18px; font-weight: bold; color: #1DB954; }
-        
+        .vote-count { font-size: 18px; font-weight: bold; color: #1DB954; margin-right: 10px; }
         h3 { color: #1DB954; font-size: 14px; text-transform: uppercase; text-align: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
     </style>
 </head>
@@ -75,17 +72,17 @@ firebase.initializeApp({
 const db = firebase.database();
 
 let sToken = "";
-// ADRESA WORKERU Z TVÉHO SCREENSHOTU
-const WORKER_URL = "https://worker-proud-sun-3351.kamillos-dj.workers.dev";
 
+// Zkusíme získat token z aktuální domény, aby nevznikal ERR_NAME_NOT_RESOLVED
 async function getSToken() {
     try {
-        const response = await fetch(`${WORKER_URL}/token`);
+        const response = await fetch('/token');
         const data = await response.json();
         sToken = data.access_token;
-        console.log("Token v pořádku");
-    } catch(e) { 
-        console.error("Auth error:", e); 
+    } catch (e) {
+        // Pokud /token nefunguje, použijeme záložní URL, ale bez těch čísel, co to rozbíjela
+        const backupUrl = "https://worker-proud-sun-3351.kamillos-dj.workers.dev/token";
+        fetch(backupUrl).then(r => r.json()).then(d => sToken = d.access_token).catch(err => console.log("Auth fail"));
     }
 }
 getSToken();
@@ -102,8 +99,8 @@ function initSearch(inputId, resId) {
 
         timer = setTimeout(() => {
             if (!sToken) return;
-            // Opravený fetch s query parametrem
-            fetch(`${WORKER_URL}/search?query=${encodeURIComponent(v)}&type=track&limit=6`)
+            // Voláme vyhledávání na stejné doméně
+            fetch(`/search?query=${encodeURIComponent(v)}&type=track&limit=6`)
             .then(r => r.json())
             .then(j => {
                 res.innerHTML = "";
@@ -127,8 +124,7 @@ function initSearch(inputId, resId) {
                         res.appendChild(div);
                     });
                 }
-            })
-            .catch(err => console.error("Search error:", err));
+            }).catch(e => console.log("Hledání neprošlo"));
         }, 400);
     });
 }
@@ -143,18 +139,16 @@ function sendReq(a, s, i, id) {
     });
 }
 
-window.vote = (id) => {
-    db.ref("requests/" + id + "/votes").transaction(v => (v || 0) + 1);
-};
+window.vote = (id) => db.ref("requests/" + id + "/votes").transaction(v => (v || 0) + 1);
 
 db.ref("requests").on("value", snap => {
     const val = snap.val();
     let lH = "", hH = "";
     if (val) {
         Object.entries(val).sort((a,b) => b[1].votes - a[1].votes).forEach(([id, d]) => {
-            const barColor = d.status === "played" ? "#666" : "#4682B4";
+            const bar = d.status === "played" ? "#555" : "#1DB954";
             const card = `
-            <div class="req-card" style="--bar-color: ${barColor}">
+            <div class="req-card" style="--pruzek: ${bar}">
                 <div class="req-info">
                     <img src="${d.img}">
                     <div class="req-details">
@@ -162,7 +156,7 @@ db.ref("requests").on("value", snap => {
                         <small>${d.artist}</small>
                     </div>
                 </div>
-                <div class="vote-section">
+                <div style="display:flex; align-items:center;">
                     <span class="vote-count">${d.votes || 0}</span>
                     ${d.status !== 'played' ? `<button onclick="vote('${id}')" class="v-btn">+</button>` : ''}
                 </div>
