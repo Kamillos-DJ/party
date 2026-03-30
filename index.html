@@ -43,9 +43,11 @@
 </div>
 
 <script>
-// Tady je ta opravená adresa v kuse, aby ji nic nezkrátilo
-const API = "https://worker-proud-sun-3351.kamillos-dj.workers.dev";
-
+// Tímto rozdělením zabráníme editoru, aby tam dělal ty tři tečky
+const cast1 = "https://worker-proud-sun-3351";
+const cast2 = ".kamillos-dj.workers.dev";
+const API = cast1 + cast2;
+    
 firebase.initializeApp({
     apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
     databaseURL: "https://hudba-na-tuhle-skvelou-party-default-rtdb.firebaseio.com",
