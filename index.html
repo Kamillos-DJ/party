@@ -1,118 +1,77 @@
 <!DOCTYPE html>
 <html lang="cs">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-    <style>
-        body { background-color: #000; color: #fff; font-family: sans-serif; margin: 0; padding: 10px; overflow-x: hidden; }
-        #dj-box { max-width: 600px; margin: auto; background: #121212; padding: 20px; border-radius: 15px; border: 1px solid #333; }
-        input { width: 100%; padding: 14px; border-radius: 25px; background: #222; color: #fff; border: 2px solid #1DB954; outline: none; box-sizing: border-box; font-size: 16px; }
-        .res-box { display: none; background: #252525; border-radius: 15px; margin-top: 10px; max-height: 300px; overflow-y: auto; border: 1px solid #444; }
-        .s-item { padding: 12px; display: flex; align-items: center; gap: 12px; cursor: pointer; border-bottom: 1px solid #333; }
-        .s-item:last-child { border-bottom: none; }
-        .s-item img { width: 45px; height: 45px; border-radius: 6px; }
-        .req-card { background: #1a1a1a; padding: 12px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border: 1px solid #333; }
-        .v-btn { background: #1DB954; border: none; color: #fff; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-weight: bold; }
-        h3 { color: #1DB954; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; text-align: center; margin-top: 25px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DJ Kontrola</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+    body { background-color: #000; color: #fff; font-family: sans-serif; padding: 20px; }
+    #dj-panel { max-width: 800px; margin: auto; }
+    h1 { color: #1DB954; }
+    .card { background: #222; padding: 15px; margin-bottom: 10px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333; transition: opacity 0.3s; }
+    .req-info { display: flex; align-items: center; gap: 15px; }
+    .req-info img { width: 50px; height: 50px; border-radius: 6px; }
+    .controls { display: flex; gap: 8px; }
+    button { padding: 8px 12px; cursor: pointer; border: none; border-radius: 6px; font-weight: bold; transition: transform 0.1s; }
+    button:active { transform: scale(0.95); }
+    .play { background: #1DB954; color: white; }
+    .played { background: #666; color: white; }
+    .reject { background: #ff4444; color: white; }
+    .accept { background: #4682B4; color: white; }
+    .del { background: #ffaa00; color: black; }
+</style>
 </head>
 <body>
-    <div id="dj-box">
-        <div style="text-align:center; color:#1DB954; margin-bottom:15px; font-weight: bold; font-size: 18px;">DJ: <span id="target-dj">...</span></div>
-        <input type="text" id="i" placeholder="Hledat skladbu na Spotify...">
-        <div id="r" class="res-box"></div>
-        
-        <h3>🔥 Fronta přání</h3>
-        <div id="l"></div>
+    <div id="dj-panel">
+        <h1>DJ Panel: <span id="dj-name" style="color:white;">-</span></h1>
+        <div id="admin-list"></div>
     </div>
 
 <script>
-// 1. Nastavení DJ z URL
-const urlParams = new URLSearchParams(window.location.search);
-const currentDJ = urlParams.get('dj') || "Kamillos DJ";
-document.getElementById('target-dj').innerText = currentDJ;
+    const urlParams = new URLSearchParams(window.location.search);
+    const djId = urlParams.get('dj') || 'default';
+    document.getElementById('dj-name').innerText = djId;
+    const databasePath = "requests_" + djId;
 
-// 2. Firebase - OPRAVENÁ ADRESA (Europe region)
-const firebaseConfig = {
-    apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
-    authDomain: "hudba-na-tuhle-skvelou-party.firebaseapp.com",
-    databaseURL: "https://hudba-na-tuhle-skvelou-party-default-rtdb.europe-west1.firebasedatabase.app/",
-    projectId: "hudba-na-tuhle-skvelou-party"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+    const cfg = {
+        apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
+        databaseURL: "https://hudba-na-tuhle-skvelou-party-default-rtdb.firebaseio.com",
+        projectId: "hudba-na-tuhle-skvelou-party"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(cfg);
+    const db = firebase.database();
 
-// 3. Spotify Token
-let sToken = "";
-async function getSToken() {
-    try {
-        const r = await fetch("https://api.allorigins.win/get?url=" + encodeURIComponent("https://accounts.spotify.com/api/token"));
-        const d = await r.json();
-        sToken = JSON.parse(d.contents).access_token;
-    } catch(e) { console.error("Spotify Auth Error"); }
-}
-getSToken();
+    window.updateSongStatus = (id, newStatus) => {
+        if (newStatus === 'delete') {
+            db.ref(databasePath + "/" + id).remove();
+        } else {
+            db.ref(databasePath + "/" + id).update({ status: newStatus });
+        }
+    };
 
-// 4. Vyhledávání
-const input = document.getElementById('i');
-const res = document.getElementById('r');
-let timer;
-
-input.addEventListener('input', () => {
-    clearTimeout(timer);
-    const q = input.value.trim();
-    if (q.length < 3) { res.style.display = "none"; return; }
-
-    timer = setTimeout(async () => {
-        if (!sToken) await getSToken();
-        try {
-            const r = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=6`, {
-                headers: { "Authorization": "Bearer " + sToken }
+    db.ref(databasePath).on("value", snap => {
+        const val = snap.val();
+        let html = "";
+        if (val) {
+            Object.entries(val).sort((a,b) => b[1].votes - a[1].votes).forEach(([id, d]) => {
+                const isPlayed = d.status === 'played';
+                const opacity = isPlayed ? 'opacity: 0.5;' : '';
+                
+                html += `<div class="card" style="${opacity}">
+                    <div class="req-info"><img src="${d.img}"><div><b>${d.song}</b><br><small>${d.artist} (Hlasů: ${d.votes || 0})</small></div></div>
+                    <div class="controls">
+                        ${!isPlayed ? `<button class="accept" onclick="updateSongStatus('${id}', 'accepted')">Schválit</button>` : ''}
+                        ${!isPlayed ? `<button class="play" onclick="updateSongStatus('${id}', 'played')">Hraje</button>` : `<button class="played" onclick="updateSongStatus('${id}', 'accepted')">Vrátit</button>`}
+                        <button class="reject" onclick="updateSongStatus('${id}', 'rejected')">Zamítnout</button>
+                        <button class="del" onclick="updateSongStatus('${id}', 'delete')">Smazat</button>
+                    </div>
+                </div>`;
             });
-            const j = await r.json();
-            
-            res.innerHTML = "";
-            if (j.tracks && j.tracks.items) {
-                res.style.display = "block";
-                j.tracks.items.forEach(t => {
-                    const d = document.createElement("div");
-                    d.className = "s-item";
-                    d.innerHTML = `<img src="${t.album.images[2].url}"><div><b>${t.name}</b><br><small>${t.artists[0].name}</small></div>`;
-                    d.onclick = () => {
-                        db.ref("queues/" + currentDJ + "/" + t.id).set({
-                            artist: t.artists[0].name, track: t.name, img: t.album.images[2].url, votes: 1, timestamp: Date.now()
-                        });
-                        input.value = ""; res.style.display = "none";
-                    };
-                    res.appendChild(d);
-                });
-            }
-        } catch(e) { console.error("Search Error"); }
-    }, 400);
-});
-
-// 5. Zobrazení fronty (Realtime)
-db.ref("queues/" + currentDJ).on("value", snap => {
-    let h = "";
-    const val = snap.val();
-    if (val) {
-        Object.entries(val).sort((a,b) => b[1].votes - a[1].votes).forEach(([id, d]) => {
-            h += `<div class="req-card">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <img src="${d.img}" width="40" style="border-radius:4px;">
-                    <div><b>${d.track}</b><br><small>${d.artist}</small></div>
-                </div>
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <b>${d.votes}</b>
-                    <button class="v-btn" onclick="firebase.database().ref('queues/${currentDJ}/${id}/votes').transaction(v=>(v||0)+1)">+</button>
-                </div>
-            </div>`;
-        });
-    }
-    document.getElementById("l").innerHTML = h || "<p style='text-align:center;color:#555;'>Čekám na první songy...</p>";
-});
+        }
+        document.getElementById("admin-list").innerHTML = html || "<p style='color:#666;text-align:center'>Žádné žádosti k vyřízení.</p>";
+    });
 </script>
 </body>
 </html>
