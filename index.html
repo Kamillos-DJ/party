@@ -9,21 +9,22 @@
     <style>
         body { background-color: #000; color: #fff; font-family: sans-serif; margin: 0; padding: 10px; }
         #dj-box { max-width: 800px; margin: auto; background: #121212; padding: 20px; border-radius: 15px; border: 1px solid #333; }
-        input[type="text"] { width: 100%; padding: 15px; border-radius: 25px; background: #222; color: #fff; border: 2px solid #1DB954; box-sizing: border-box; margin-bottom: 10px; }
+        input[type="text"] { width: 100%; padding: 15px; border-radius: 25px; background: #222; color: #fff; border: 2px solid #1DB954; box-sizing: border-box; margin-bottom: 10px; font-size: 16px; }
         #i-tidal { border-color: #00FFFF; }
-        .res-box { background: #252525; border-radius: 10px; margin-bottom: 20px; display: none; border: 1px solid #444; }
+        .res-box { background: #252525; border-radius: 10px; margin-bottom: 20px; display: none; border: 1px solid #444; max-height: 300px; overflow-y: auto; }
         .s-item { padding: 10px; display: flex; align-items: center; gap: 10px; cursor: pointer; border-bottom: 1px solid #333; }
+        .s-item:hover { background: #333; }
         .s-item img { width: 40px; height: 40px; border-radius: 4px; }
         .s-item div { display: flex; flex-direction: column; }
-        .s-item b { font-size: 15px; }
+        .s-item b { font-size: 15px; color: #fff; }
         .s-item small { color: #aaa; }
-        .lists { display: flex; gap: 20px; margin-top: 20px; }
-        .col { flex: 1; }
+        .lists { display: flex; gap: 20px; margin-top: 20px; flex-wrap: wrap; }
+        .col { flex: 1; min-width: 300px; }
         .req-card { background: #222; padding: 10px; border-radius: 10px; display: flex; align-items: center; gap: 10px; margin-bottom: 8px; border-left: 5px solid #4682B4; }
-        .req-card.played { border-left-color: #666; opacity: 0.7; }
-        .req-card img { width: 40px; height: 40px; border-radius: 4px; }
-        .v-btn { background: #1DB954; border: none; color: #fff; padding: 5px 10px; border-radius: 5px; cursor: pointer; }
-        h3 { font-size: 12px; color: #1DB954; text-transform: uppercase; text-align: center; }
+        .req-card.played { border-left-color: #666; opacity: 0.6; }
+        .req-card img { width: 45px; height: 45px; border-radius: 4px; }
+        .v-btn { background: #1DB954; border: none; color: #fff; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-weight: bold; font-size: 18px; }
+        h3 { font-size: 13px; color: #1DB954; text-transform: uppercase; text-align: center; border-bottom: 1px solid #333; padding-bottom: 5px; }
     </style>
 </head>
 <body>
@@ -32,6 +33,7 @@
     <input type="text" id="i" placeholder="Hledat na Spotify...">
     <div id="r" class="res-box"></div>
     
+    <div style="color: #00FFFF; font-size: 12px; margin: 5px 0 5px 15px;">Hledat na Tidalu:</div>
     <input type="text" id="i-tidal" placeholder="Hledat na Tidalu...">
     <div id="r-tidal" class="res-box"></div>
 
@@ -42,8 +44,8 @@
 </div>
 
 <script>
-// Tady je ta adresa vypsaná úplně celá, aby ji prohlížeč našel
-const API = "https://worker-proud-sun-3351.kamillos-dj.workers.dev";
+// TADY JE TA OPRAVENÁ ADRESA BEZ TEČEK:
+const WORKER_URL = "https://worker-proud-sun-3351.kamillos-dj.workers.dev";
 
 firebase.initializeApp({
     apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
@@ -52,61 +54,97 @@ firebase.initializeApp({
 });
 const db = firebase.database();
 
-let token = "";
-async function getToken() {
+let spotifyToken = "";
+
+async function getNewToken() {
     try {
-        const res = await fetch(API + "/token");
-        const data = await res.json();
-        token = data.access_token;
-    } catch(e) { console.error("Chyba tokenu:", e); }
+        const response = await fetch(WORKER_URL + "/token");
+        const data = await response.json();
+        spotifyToken = data.access_token;
+        console.log("Token obnoven");
+    } catch (err) {
+        console.error("Chyba při načítání tokenu:", err);
+    }
 }
-getToken();
+getNewToken();
 
 function setupSearch(inputId, resId) {
     const input = document.getElementById(inputId);
-    const resDiv = document.getElementById(resId);
-    input.oninput = async () => {
-        if (input.value.length < 3 || !token) return;
-        const r = await fetch(API + "/search?query=" + encodeURIComponent(input.value));
-        const j = await r.json();
-        resDiv.innerHTML = "";
-        resDiv.style.display = "block";
-        (j.tracks?.items || []).forEach(t => {
-            const d = document.createElement("div");
-            d.className = "s-item";
-            d.innerHTML = `<img src="${t.album.images[2].url}"><div><b>${t.name}</b><small>${t.artists[0].name}</small></div>`;
-            d.onclick = () => {
-                db.ref("requests/" + t.id).transaction(curr => {
-                    if (curr) return { ...curr, votes: curr.votes + 1 };
-                    return { song: t.name, artist: t.artists[0].name, img: t.album.images[2].url, votes: 1, status: "waiting" };
-                });
-                input.value = ""; resDiv.style.display = "none";
-            };
-            resDiv.appendChild(d);
-        });
+    const results = document.getElementById(resId);
+    let timeout;
+
+    input.oninput = () => {
+        clearTimeout(timeout);
+        const query = input.value.trim();
+        if (query.length < 3) { results.style.display = "none"; return; }
+
+        timeout = setTimeout(async () => {
+            try {
+                const res = await fetch(WORKER_URL + "/search?query=" + encodeURIComponent(query));
+                const data = await res.json();
+                results.innerHTML = "";
+                const tracks = data.tracks?.items || [];
+                
+                if (tracks.length > 0) {
+                    results.style.display = "block";
+                    tracks.forEach(track => {
+                        const img = track.album.images[2]?.url || "";
+                        const item = document.createElement("div");
+                        item.className = "s-item";
+                        item.innerHTML = `<img src="${img}"><div><b>${track.name}</b><small>${track.artists[0].name}</small></div>`;
+                        item.onclick = () => {
+                            addRequest(track.artists[0].name, track.name, img, track.id);
+                            input.value = "";
+                            results.style.display = "none";
+                        };
+                        results.appendChild(item);
+                    });
+                }
+            } catch (e) { console.error("Chyba vyhledávání:", e); }
+        }, 400);
     };
 }
 
 setupSearch("i", "r");
 setupSearch("i-tidal", "r-tidal");
 
-db.ref("requests").on("value", snap => {
-    let lH = "", hH = "";
-    const items = Object.entries(snap.val() || {}).sort((a,b) => b[1].votes - a[1].votes);
-    items.forEach(([id, d]) => {
-        const html = `<div class="req-card ${d.status === 'played' ? 'played' : ''}">
-            <img src="${d.img}">
-            <div style="flex:1"><b>${d.song}</b><br><small>${d.artist}</small></div>
-            <div style="text-align:right"><b>${d.votes}</b><br>
-            ${d.status !== 'played' ? `<button class="v-btn" onclick="vote('${id}')">+</button>` : ''}</div>
-        </div>`;
-        if (d.status === "played") hH += html; else lH += html;
-    });
-    document.getElementById("l").innerHTML = lH;
-    document.getElementById("h").innerHTML = hH;
-});
+function addRequest(artist, song, img, id) {
+    if (localStorage.getItem("voted_" + id)) return;
+    db.ref("requests/" + id).transaction(current => {
+        if (current) return { ...current, votes: (current.votes || 0) + 1 };
+        return { artist, song, img, votes: 1, status: "waiting", timestamp: Date.now() };
+    }, () => localStorage.setItem("voted_" + id, "1"));
+}
 
-window.vote = (id) => db.ref("requests/" + id + "/votes").transaction(v => v + 1);
+window.vote = (id) => {
+    if (localStorage.getItem("voted_" + id)) return;
+    db.ref("requests/" + id + "/votes").transaction(v => (v || 0) + 1, () => localStorage.setItem("voted_" + id, "1"));
+};
+
+db.ref("requests").on("value", snap => {
+    const data = snap.val() || {};
+    let queueHtml = "";
+    let historyHtml = "";
+    
+    const sorted = Object.entries(data).sort((a, b) => b[1].votes - a[1].votes);
+
+    sorted.forEach(([id, req]) => {
+        const isPlayed = req.status === "played";
+        const card = `
+            <div class="req-card ${isPlayed ? 'played' : ''}">
+                <img src="${req.img}">
+                <div style="flex:1"><b>${req.song}</b><small>${req.artist}</small></div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <b>${req.votes}</b>
+                    ${!isPlayed ? `<button class="v-btn" onclick="vote('${id}')">+</button>` : ''}
+                </div>
+            </div>`;
+        if (isPlayed) historyHtml += card; else queueHtml += card;
+    });
+
+    document.getElementById("l").innerHTML = queueHtml;
+    document.getElementById("h").innerHTML = historyHtml;
+});
 </script>
 </body>
 </html>
