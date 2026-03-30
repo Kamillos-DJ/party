@@ -3,33 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Party Music Player</title>
+    <title>Party Music</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
-        body { background: #000; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 15px; }
-        .search-container { position: sticky; top: 0; background: #000; padding-bottom: 15px; z-index: 100; }
-        .search { width: 100%; padding: 18px; border-radius: 30px; border: 2px solid #1DB954; background: #121212; color: #fff; box-sizing: border-box; font-size: 16px; outline: none; }
-        .res { background: #181818; border-radius: 15px; display: none; margin: 10px 0; max-height: 350px; overflow-y: auto; border: 1px solid #333; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
-        .track { padding: 12px; border-bottom: 1px solid #282828; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: background 0.2s; }
-        .track:hover { background: #282828; }
-        .track img { width: 50px; height: 50px; border-radius: 4px; }
-        .cols { display: flex; gap: 20px; margin-top: 20px; }
-        .col { flex: 1; min-width: 0; }
-        .card { background: #181818; padding: 12px; margin-bottom: 10px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; border-left: 4px solid #1DB954; animation: fadeIn 0.3s ease; }
-        .btn { background: #1DB954; border: none; color: #fff; border-radius: 50%; width: 38px; height: 38px; cursor: pointer; font-weight: bold; font-size: 20px; flex-shrink: 0; margin-left: 10px; }
-        .btn:active { transform: scale(0.9); }
-        h3 { font-size: 14px; color: #1DB954; text-align: center; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 15px; }
-        small { color: #b3b3b3; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        body { background: #000; color: #fff; font-family: sans-serif; margin: 0; padding: 10px; }
+        .search { width: 100%; padding: 15px; border-radius: 25px; border: 2px solid #1DB954; background: #111; color: #fff; box-sizing: border-box; font-size: 16px; outline: none; }
+        .res { background: #222; border-radius: 10px; display: none; margin: 10px 0; max-height: 300px; overflow-y: auto; border: 1px solid #444; }
+        .track { padding: 10px; border-bottom: 1px solid #333; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+        .track img { width: 45px; height: 45px; border-radius: 4px; }
+        .cols { display: flex; gap: 15px; margin-top: 20px; }
+        .col { flex: 1; }
+        .card { background: #181818; padding: 10px; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; border-left: 4px solid #1DB954; }
+        .btn { background: #1DB954; border: none; color: #fff; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; font-weight: bold; }
+        h3 { font-size: 12px; color: #1DB954; text-align: center; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 5px; }
     </style>
 </head>
 <body>
 
-    <div class="search-container">
-        <input type="text" id="sin" class="search" placeholder="Najdi svou pecku na Spotify...">
-        <div id="sres" class="res"></div>
-    </div>
+    <input type="text" id="sin" class="search" placeholder="Hledat písničku na Spotify...">
+    <div id="sres" class="res"></div>
 
     <div class="cols">
         <div class="col"><h3>🔥 FRONTA</h3><div id="q"></div></div>
@@ -37,79 +30,75 @@
     </div>
 
 <script>
-    // 1. Získání DJ ID z adresy
     const urlParams = new URLSearchParams(window.location.search);
-    const djId = urlParams.get('dj') || 'default_party';
+    const djId = urlParams.get('dj') || 'default';
     const path = "requests_" + djId;
 
-    // 2. Firebase Konfigurace
-    const firebaseConfig = {
+    const cfg = {
         apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
         databaseURL: "https://hudba-na-tuhle-skvelou-party-default-rtdb.firebaseio.com",
         projectId: "hudba-na-tuhle-skvelou-party"
     };
-    firebase.initializeApp(firebaseConfig);
+    if (!firebase.apps.length) firebase.initializeApp(cfg);
     const db = firebase.database();
 
-    // 3. Spotify Autentizace (Token)
-    let spotifyToken = "";
-    async function refreshSpotifyToken() {
-        try {
-            const response = await fetch("https://accounts.spotify.com/api/token", {
-                method: "POST",
-                headers: { 
-                    "Content-Type": "application/x-www-form-urlencoded",
-                    "Authorization": "Basic " + btoa("85eac0730fcf4117a259926c46305337:256e2c4254f34f779e1968025c2585e8") 
-                },
-                body: "grant_type=client_credentials"
-            });
-            const data = await response.json(); 
-            spotifyToken = data.access_token;
-        } catch(e) { console.error("Spotify Auth Error"); }
+    let tok = "";
+    async function getTok() {
+        const r = await fetch("https://accounts.spotify.com/api/token", {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Authorization": "Basic " + btoa("85eac0730fcf4117a259926c46305337:256e2c4254f34f779e1968025c2585e8") 
+            },
+            body: "grant_type=client_credentials"
+        });
+        const d = await r.json(); tok = d.access_token;
     }
-    refreshSpotifyToken();
+    getTok();
 
-    // 4. Vyhledávání písniček
-    const inputField = document.getElementById('sin');
-    const resultsDiv = document.getElementById('sres');
-    let typingTimer;
+    const inEl = document.getElementById('sin');
+    const resEl = document.getElementById('sres');
 
-    inputField.oninput = () => {
-        clearTimeout(typingTimer);
-        if (inputField.value.length < 3) { resultsDiv.style.display='none'; return; }
-        
-        typingTimer = setTimeout(() => {
-            fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(inputField.value)}&type=track&limit=6`, {
-                headers: { "Authorization": "Bearer " + spotifyToken }
-            }).then(r=>r.json()).then(data=>{
-                resultsDiv.innerHTML = "";
-                const items = data.tracks?.items || [];
-                if (items.length > 0) {
-                    resultsDiv.style.display='block';
-                    items.forEach(t => {
-                        const trackEl = document.createElement('div');
-                        trackEl.className = 'track';
-                        trackEl.innerHTML = `<img src="${t.album.images[2]?.url || ''}"><div><b>${t.name}</b><br><small>${t.artists[0].name}</small></div>`;
-                        trackEl.onclick = () => {
-                            db.ref(path + "/" + t.id).transaction(current => {
-                                if (current) return { ...current, v: (current.v || 1) + 1 };
-                                return { a: t.artists[0].name, s: t.name, i: t.album.images[2]?.url || '', v: 1, st: "w" };
-                            });
-                            inputField.value = ""; resultsDiv.style.display='none';
-                        };
-                        resultsDiv.appendChild(trackEl);
-                    });
-                }
+    inEl.oninput = () => {
+        if (inEl.value.length < 3) { resEl.style.display='none'; return; }
+        fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(inEl.value)}&type=track&limit=6`, {
+            headers: { "Authorization": "Bearer " + tok }
+        }).then(r=>r.json()).then(d=>{
+            resEl.innerHTML = "";
+            (d.tracks?.items || []).forEach(t => {
+                const div = document.createElement('div');
+                div.className = 'track';
+                div.innerHTML = `<img src="${t.album.images[2]?.url}"><div><b>${t.name}</b><br>${t.artists[0].name}</div>`;
+                div.onclick = () => {
+                    db.ref(path + "/" + t.id).transaction(c => {
+                        if (c) return { ...c, v: (c.v || 1) + 1 };
+                        return { a: t.artists[0].name, s: t.name, i: t.album.images[2]?.url, v: 1, st: "w" };
+                    }).catch(e => console.error("Firebase Error:", e));
+                    inEl.value = ""; resEl.style.display='none';
+                };
+                resEl.appendChild(div);
             });
-        }, 400);
+            resEl.style.display='block';
+        });
     };
 
-    // 5. Hlasování (Plus tlačítko)
-    window.addVote = (id) => {
-        db.ref(path + "/" + id + "/v").transaction(v => (v || 0) + 1);
-    };
+    window.vte = (id) => db.ref(path + "/" + id + "/v").transaction(v => (v || 0) + 1);
 
-    // 6. Načítání dat v reálném čase
-    db.ref(path).on('value', snapshot => {
-        const data = snapshot.val();
-        let queueHtml = "", historyHtml = "";
+    db.ref(path).on('value', s => {
+        const d = s.val();
+        let qH = "", hH = "";
+        if (d) {
+            Object.entries(d).sort((a,b)=> (b[1].v || 0) - (a[1].v || 0)).forEach(([id, r]) => {
+                const html = `<div class="card">
+                    <div style="display:flex;align-items:center;gap:10px;"><img src="${r.i}" width="30"><div><b>${r.s}</b><br><small>${r.a}</small></div></div>
+                    <div style="text-align:right"><b>${r.v}</b><br><button onclick="vte('${id}')" class="btn">+</button></div>
+                </div>`;
+                if (r.st === "p") hH += html; else qH += html;
+            });
+        }
+        document.getElementById('q').innerHTML = qH || "<p style='color:#666;text-align:center'>Fronta je prázdná</p>";
+        document.getElementById('h').innerHTML = hH || "<p style='color:#666;text-align:center'>Zatím nic</p>";
+    });
+</script>
+</body>
+</html>
