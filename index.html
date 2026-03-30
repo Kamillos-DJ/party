@@ -8,12 +8,13 @@
     <style>
         body { background-color: #000; color: #fff; font-family: sans-serif; margin: 0; padding: 10px; }
         #dj-box { max-width: 600px; margin: auto; background: #121212; padding: 20px; border-radius: 15px; border: 1px solid #333; }
-        input { width: 100%; padding: 14px; border-radius: 25px; background: #222; color: #fff; border: 2px solid #1DB954; outline: none; box-sizing: border-box; }
+        input { width: 100%; padding: 14px; border-radius: 25px; background: #222; color: #fff; border: 2px solid #333; outline: none; box-sizing: border-box; transition: border 0.3s; }
+        input:focus { border: 2px solid #1DB954; }
         .res-box { display: none; background: #252525; border-radius: 15px; margin-top: 10px; max-height: 250px; overflow-y: auto; border: 1px solid #444; }
         .s-item { padding: 12px; display: flex; align-items: center; gap: 12px; cursor: pointer; border-bottom: 1px solid #333; }
         .s-item img { width: 45px; height: 45px; border-radius: 6px; }
         .req-card { background: #1a1a1a; padding: 12px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border: 1px solid #333; }
-        .v-btn { background: #1DB954; border: none; color: #fff; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; }
+        .v-btn { background: #1DB954; border: none; color: #fff; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -29,22 +30,19 @@ const urlParams = new URLSearchParams(window.location.search);
 const currentDJ = urlParams.get('dj') || "Kamillos DJ";
 document.getElementById('target-dj').innerText = currentDJ;
 
-// Konfigurace z funkčního screenshotu b3a503
-const cfg = {
+firebase.initializeApp({
     apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
     databaseURL: "https://hudba-na-tuhle-skvelou-party-default-rtdb.firebaseio.com",
     projectId: "hudba-na-tuhle-skvelou-party"
-};
-firebase.initializeApp(cfg);
+});
 const db = firebase.database();
 
 let sToken = "";
 async function getSToken() {
     try {
-        // Přímé volání bez allorigins, které ti způsobovalo CORS chyby
-        const r = await fetch("https://worker-proud-sun-3351.kamillo.workers.dev/token");
+        const r = await fetch("https://api.allorigins.win/get?url=" + encodeURIComponent("https://accounts.spotify.com/api/token"));
         const d = await r.json();
-        sToken = d.access_token;
+        sToken = JSON.parse(d.contents).access_token;
     } catch(e) { console.error("Spotify Auth Error"); }
 }
 getSToken();
@@ -61,7 +59,6 @@ input.addEventListener('input', () => {
     timer = setTimeout(async () => {
         if (!sToken) await getSToken();
         try {
-            // Použití googleusercontent proxy, která ti prokazatelně fungovala
             const r = await fetch(`https://api.spotify.com/v1/search?q=$${encodeURIComponent(q)}&type=track&limit=6`, {
                 headers: { "Authorization": "Bearer " + sToken }
             });
@@ -74,7 +71,6 @@ input.addEventListener('input', () => {
                     d.className = "s-item";
                     d.innerHTML = `<img src="${t.album.images[2].url}"><div><b>${t.name}</b><br><small>${t.artists[0].name}</small></div>`;
                     d.onclick = () => {
-                        // Cesta "requests_", kterou očekává tvůj DJ Panel
                         db.ref("requests_" + currentDJ + "/" + t.id).set({
                             song: t.name, artist: t.artists[0].name, img: t.album.images[2].url, votes: 1, timestamp: Date.now()
                         });
