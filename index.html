@@ -8,13 +8,12 @@
     <style>
         body { background-color: #000; color: #fff; font-family: sans-serif; margin: 0; padding: 10px; }
         #dj-box { max-width: 600px; margin: auto; background: #121212; padding: 20px; border-radius: 15px; border: 1px solid #333; }
-        input { width: 100%; padding: 14px; border-radius: 25px; background: #222; color: #fff; border: 2px solid #1DB954; outline: none; box-sizing: border-box; font-size: 16px; }
-        .res-box { display: none; background: #252525; border-radius: 15px; margin-top: 10px; max-height: 300px; overflow-y: auto; border: 1px solid #444; }
+        input { width: 100%; padding: 14px; border-radius: 25px; background: #222; color: #fff; border: 2px solid #1DB954; outline: none; box-sizing: border-box; }
+        .res-box { display: none; background: #252525; border-radius: 15px; margin-top: 10px; max-height: 250px; overflow-y: auto; border: 1px solid #444; }
         .s-item { padding: 12px; display: flex; align-items: center; gap: 12px; cursor: pointer; border-bottom: 1px solid #333; }
         .s-item img { width: 45px; height: 45px; border-radius: 6px; }
         .req-card { background: #1a1a1a; padding: 12px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border: 1px solid #333; }
-        .v-btn { background: #1DB954; border: none; color: #fff; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-weight: bold; }
-        h3 { color: #1DB954; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; text-align: center; margin-top: 25px; }
+        .v-btn { background: #1DB954; border: none; color: #fff; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -30,12 +29,13 @@ const urlParams = new URLSearchParams(window.location.search);
 const currentDJ = urlParams.get('dj') || "Kamillos DJ";
 document.getElementById('target-dj').innerText = currentDJ;
 
-// Tato konfigurace s touto URL databáze ti fungovala na obrázku b3a503
-firebase.initializeApp({
+// Konfigurace, která jela na screenshotu b3a503
+const cfg = {
     apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
     databaseURL: "https://hudba-na-tuhle-skvelou-party-default-rtdb.firebaseio.com",
     projectId: "hudba-na-tuhle-skvelou-party"
-});
+};
+firebase.initializeApp(cfg);
 const db = firebase.database();
 
 let sToken = "";
@@ -60,14 +60,13 @@ input.addEventListener('input', () => {
     timer = setTimeout(async () => {
         if (!sToken) await getSToken();
         try {
-            // TATO ADRESA JE TA FUNKČNÍ Z OBRÁZKU b3a503
+            // Funkční proxy cesta ze screenshotu b3a503
             const r = await fetch(`https://api.spotify.com/v1/search?q=$${encodeURIComponent(q)}&type=track&limit=6`, {
                 headers: { "Authorization": "Bearer " + sToken }
             });
             const j = await r.json();
-            
             res.innerHTML = "";
-            if (j.tracks && j.tracks.items) {
+            if (j.tracks?.items) {
                 res.style.display = "block";
                 j.tracks.items.forEach(t => {
                     const d = document.createElement("div");
@@ -75,7 +74,7 @@ input.addEventListener('input', () => {
                     d.innerHTML = `<img src="${t.album.images[2].url}"><div><b>${t.name}</b><br><small>${t.artists[0].name}</small></div>`;
                     d.onclick = () => {
                         db.ref("requests_" + currentDJ + "/" + t.id).set({
-                            artist: t.artists[0].name, song: t.name, img: t.album.images[2].url, votes: 1, timestamp: Date.now()
+                            song: t.name, artist: t.artists[0].name, img: t.album.images[2].url, votes: 1, timestamp: Date.now()
                         });
                         input.value = ""; res.style.display = "none";
                     };
@@ -93,7 +92,7 @@ db.ref("requests_" + currentDJ).on("value", snap => {
         Object.entries(val).sort((a,b) => b[1].votes - a[1].votes).forEach(([id, d]) => {
             h += `<div class="req-card">
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <img src="${d.img}" width="40" style="border-radius:4px;">
+                    <img src="${d.img}" width="40">
                     <div><b>${d.song}</b><br><small>${d.artist}</small></div>
                 </div>
                 <div><b>${d.votes}</b> <button class="v-btn" onclick="db.ref('requests_${currentDJ}/${id}/votes').transaction(v=>(v||0)+1)">+</button></div>
