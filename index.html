@@ -10,6 +10,7 @@
         body { background-color: #000; color: #fff; font-family: 'Inter', sans-serif; margin: 0; padding: 10px; }
         #dj-box { max-width: 1000px; margin: auto; background: #121212; padding: 25px; border-radius: 20px; border: 1px solid #333; }
         
+        /* HLEDÁNÍ */
         .search-container { display: flex; flex-direction: column; gap: 15px; }
         .search-wrapper { position: relative; width: 100%; }
         input[type="text"] { width: 100%; padding: 14px 20px; border-radius: 25px; background: #222; color: #fff; box-sizing: border-box; font-size: 16px; outline: none; border: 2px solid #333; }
@@ -19,27 +20,30 @@
         /* NAŠEPTVÁVAČ - Texty pod sebou */
         .res-box { display: none; position: absolute; top: 100%; left: 0; right: 0; background: #252525; border-radius: 15px; margin-top: 5px; max-height: 400px; overflow-y: auto; border: 1px solid #444; z-index: 9999; }
         .s-item { padding: 12px 18px; display: flex; align-items: center; gap: 15px; cursor: pointer; border-bottom: 1px solid #333; }
+        .s-item:hover { background: #333; }
         .s-item img { width: 45px; height: 45px; border-radius: 6px; flex-shrink: 0; }
-        .s-text { display: flex; flex-direction: column; }
+        .s-text { display: flex; flex-direction: column; text-align: left; }
         .s-text b { font-size: 15px; color: #fff; line-height: 1.2; }
         .s-text small { color: #aaa; font-size: 13px; margin-top: 2px; }
 
-        /* SEZNAMY A PROUŽKY */
+        /* FRONTA A KARTY */
         .lists-container { display: flex; gap: 20px; margin-top: 30px; flex-wrap: wrap; }
         .list-column { flex: 1; min-width: 320px; }
-        .req-card { position: relative; background: #222; padding: 12px 16px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; border: 1px solid #333; padding-left: 20px; }
+        .req-card { position: relative; background: #222; padding: 12px 16px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; border: 1px solid #333; padding-left: 20px; overflow: hidden; }
         
-        /* Proužek na straně */
-        .req-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--pruzek, #1DB954); border-radius: 12px 0 0 12px; }
+        /* Dynamický proužek na boku */
+        .req-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--pruzek-color); }
         
         .req-info { display: flex; align-items: center; gap: 15px; }
         .req-info img { width: 50px; height: 50px; border-radius: 6px; }
-        .req-details { display: flex; flex-direction: column; }
+        .req-details { display: flex; flex-direction: column; text-align: left; }
         .req-details b { font-size: 16px; color: #fff; }
         .req-details small { color: #bbb; font-size: 13px; }
 
+        .vote-section { display: flex; align-items: center; gap: 12px; }
         .v-btn { background: #1DB954; border: none; color: #fff; width: 38px; height: 38px; border-radius: 50%; cursor: pointer; font-size: 20px; font-weight: bold; }
-        .vote-count { font-size: 18px; font-weight: bold; color: #1DB954; margin-right: 10px; }
+        .vote-count { font-size: 18px; font-weight: bold; color: #1DB954; }
+        
         h3 { color: #1DB954; font-size: 14px; text-transform: uppercase; text-align: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
     </style>
 </head>
@@ -63,25 +67,34 @@
 </div>
 
 <script>
-firebase.initializeApp({
+// --- KONFIGURACE ---
+const firebaseConfig = {
     apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
     databaseURL: "https://hudba-na-tuhle-skvelou-party-default-rtdb.firebaseio.com",
     projectId: "hudba-na-tuhle-skvelou-party"
-});
-const db = firebase.database();
+};
+// SEM VLOŽ TU ADRESU, KTEROU MÁŠ V DASHBOARDU CLOUDFLARE (příklad: https://tvuj-worker.workers.dev)
+const WORKER_URL = "https://worker-proud-sun-3351.kamillos-dj.workers.dev"; 
 
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 let sToken = "";
 
-// Opravená cesta k tokenu na tvém workeru
+// 1. Získání tokenu
 async function getSToken() {
     try {
-        const response = await fetch('https://worker-proud-sun-3351.kamillos-dj.workers.dev/token');
+        const response = await fetch(`${WORKER_URL}/token`);
+        if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.json();
         sToken = data.access_token;
-    } catch(e) { console.log("Auth fail"); }
+        console.log("Token načten");
+    } catch(e) { 
+        console.error("Chyba při získávání tokenu:", e); 
+    }
 }
 getSToken();
 
+// 2. Vyhledávání
 function initSearch(inputId, resId) {
     const input = document.getElementById(inputId);
     const res = document.getElementById(resId);
@@ -89,32 +102,36 @@ function initSearch(inputId, resId) {
 
     input.addEventListener('input', (e) => {
         clearTimeout(timer);
-        let v = e.target.value;
-        if (v.trim().length < 3) { res.style.display = "none"; return; }
+        let q = e.target.value.trim();
+        if (q.length < 3) { res.style.display = "none"; return; }
 
         timer = setTimeout(() => {
             if (!sToken) return;
-            // Opravená cesta k vyhledávání
-            fetch(`https://worker-proud-sun-3351.kamillos-dj.workers.dev/search?query=${encodeURIComponent(v)}&type=track&limit=6`)
+            fetch(`${WORKER_URL}/search?query=${encodeURIComponent(q)}&type=track&limit=6`)
             .then(r => r.json())
             .then(j => {
                 res.innerHTML = "";
-                const tracks = j.tracks?.items || [];
-                if (tracks.length > 0) {
+                const items = j.tracks?.items || [];
+                if (items.length > 0) {
                     res.style.display = "block";
-                    tracks.forEach(t => {
+                    items.forEach(t => {
                         const img = t.album.images[2]?.url || "";
                         const div = document.createElement("div");
                         div.className = "s-item";
-                        div.innerHTML = `<img src="${img}"><div class="s-text"><b>${t.name}</b><small>${t.artists[0].name}</small></div>`;
+                        div.innerHTML = `
+                            <img src="${img}">
+                            <div class="s-text">
+                                <b>${t.name}</b>
+                                <small>${t.artists[0].name}</small>
+                            </div>`;
                         div.onclick = () => {
-                            sendReq(t.artists[0].name, t.name, img, t.id);
+                            sendRequest(t.artists[0].name, t.name, img, t.id);
                             input.value = ""; res.style.display = "none";
                         };
                         res.appendChild(div);
                     });
                 }
-            });
+            }).catch(err => console.error("Search fail:", err));
         }, 400);
     });
 }
@@ -122,40 +139,52 @@ function initSearch(inputId, resId) {
 initSearch('i', 'r');
 initSearch('i-tidal', 'r-tidal');
 
-function sendReq(a, s, i, id) {
-    db.ref("requests/" + id).transaction(curr => {
-        if (curr) return { ...curr, votes: (curr.votes || 0) + 1 };
-        return { artist: a, song: s, img: i, votes: 1, status: "waiting", time: Date.now() };
+// 3. Odeslání písničky (status "waiting" zajistí modrý proužek)
+function sendRequest(artist, song, img, id) {
+    db.ref("requests/" + id).transaction(current => {
+        if (current) return { ...current, votes: (current.votes || 0) + 1 };
+        return { artist, song, img, votes: 1, status: "waiting", time: Date.now() };
     });
 }
 
-window.vote = (id) => db.ref("requests/" + id + "/votes").transaction(v => (v || 0) + 1);
+window.vote = (id) => {
+    db.ref("requests/" + id + "/votes").transaction(v => (v || 0) + 1);
+};
 
+// 4. Zobrazení seznamů
 db.ref("requests").on("value", snap => {
-    const val = snap.val();
-    let lH = "", hH = "";
-    if (val) {
-        Object.entries(val).sort((a,b) => b[1].votes - a[1].votes).forEach(([id, d]) => {
-            const bar = d.status === "played" ? "#555" : "#1DB954";
-            const card = `
-            <div class="req-card" style="--pruzek: ${bar}">
+    const data = snap.val();
+    let waitingHTML = "", playedHTML = "";
+    
+    if (data) {
+        const sorted = Object.entries(data).sort((a, b) => b[1].votes - a[1].votes);
+        
+        sorted.forEach(([id, item]) => {
+            // LOGIKA BAREV: Waiting = MODRÁ, Played = ŠEDÁ
+            const barColor = item.status === "played" ? "#444" : "#4682B4"; 
+            
+            const cardHTML = `
+            <div class="req-card" style="--pruzek-color: ${barColor}">
                 <div class="req-info">
-                    <img src="${d.img}">
+                    <img src="${item.img}">
                     <div class="req-details">
-                        <b>${d.song}</b>
-                        <small>${d.artist}</small>
+                        <b>${item.song}</b>
+                        <small>${item.artist}</small>
                     </div>
                 </div>
-                <div style="display:flex; align-items:center;">
-                    <span class="vote-count">${d.votes || 0}</span>
-                    ${d.status !== 'played' ? `<button onclick="vote('${id}')" class="v-btn">+</button>` : ''}
+                <div class="vote-section">
+                    <span class="vote-count">${item.votes || 0}</span>
+                    ${item.status !== 'played' ? `<button onclick="vote('${id}')" class="v-btn">+</button>` : ''}
                 </div>
             </div>`;
-            if (d.status === "played") hH += card; else lH += card;
+            
+            if (item.status === "played") playedHTML += cardHTML;
+            else waitingHTML += cardHTML;
         });
     }
-    document.getElementById("l").innerHTML = lH;
-    document.getElementById("h").innerHTML = hH;
+    
+    document.getElementById("l").innerHTML = waitingHTML;
+    document.getElementById("h").innerHTML = playedHTML;
 });
 </script>
 </body>
