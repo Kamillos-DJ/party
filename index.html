@@ -9,18 +9,20 @@
         body { background-color: #000; color: #fff; font-family: sans-serif; margin: 0; padding: 10px; }
         #dj-box { max-width: 600px; margin: auto; background: #121212; padding: 20px; border-radius: 15px; border: 1px solid #333; }
         input { width: 100%; padding: 14px; border-radius: 25px; background: #222; color: #fff; border: 2px solid #1DB954; outline: none; box-sizing: border-box; }
-        .res-box { display: none; background: #252525; border-radius: 15px; margin-top: 10px; max-height: 250px; overflow-y: auto; border: 1px solid #444; }
+        .res-box { display: none; background: #252525; border-radius: 15px; margin-top: 10px; max-height: 250px; overflow-y: auto; border: 1px solid #444; position: absolute; width: calc(100% - 40px); z-index: 100; }
         .s-item { padding: 12px; display: flex; align-items: center; gap: 12px; cursor: pointer; border-bottom: 1px solid #333; }
         .s-item img { width: 45px; height: 45px; border-radius: 6px; }
         .req-card { background: #1a1a1a; padding: 12px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border: 1px solid #333; }
-        .v-btn { background: #1DB954; border: none; color: #fff; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; }
+        .v-btn { background: #1DB954; border: none; color: #fff; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
     <div id="dj-box">
         <div style="text-align:center; color:#1DB954; margin-bottom:15px; font-weight: bold;">DJ: <span id="target-dj">...</span></div>
-        <input type="text" id="i" placeholder="Hledat skladbu na Spotify...">
-        <div id="r" class="res-box"></div>
+        <div style="position: relative;">
+            <input type="text" id="i" placeholder="Hledat skladbu na Spotify...">
+            <div id="r" class="res-box"></div>
+        </div>
         <div id="l" style="margin-top:20px;"></div>
     </div>
 
@@ -29,7 +31,6 @@ const urlParams = new URLSearchParams(window.location.search);
 const currentDJ = urlParams.get('dj') || "Kamillos DJ";
 document.getElementById('target-dj').innerText = currentDJ;
 
-// KONFIGURACE S OPRAVENÝM REGIONEM (Europe-west1)
 firebase.initializeApp({
     apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
     authDomain: "hudba-na-tuhle-skvelou-party.firebaseapp.com",
@@ -41,9 +42,16 @@ const db = firebase.database();
 let sToken = "";
 async function getSToken() {
     try {
-        const r = await fetch("https://api.allorigins.win/get?url=" + encodeURIComponent("https://accounts.spotify.com/api/token"));
+        const r = await fetch("https://accounts.spotify.com/api/token", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Authorization": "Basic " + btoa("85eac0730fcf4117a259926c46305337:256e2c4254f34f779e1968025c2585e8")
+            },
+            body: "grant_type=client_credentials"
+        });
         const d = await r.json();
-        sToken = JSON.parse(d.contents).access_token;
+        sToken = d.access_token;
     } catch(e) { console.error("Spotify Auth Error"); }
 }
 getSToken();
@@ -60,7 +68,7 @@ input.addEventListener('input', () => {
     timer = setTimeout(async () => {
         if (!sToken) await getSToken();
         try {
-            const r = await fetch(`https://api.spotify.com/v1/search?q=$${encodeURIComponent(q)}&type=track&limit=6`, {
+            const r = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=6`, {
                 headers: { "Authorization": "Bearer " + sToken }
             });
             const j = await r.json();
@@ -72,9 +80,8 @@ input.addEventListener('input', () => {
                     d.className = "s-item";
                     d.innerHTML = `<img src="${t.album.images[2].url}"><div><b>${t.name}</b><br><small>${t.artists[0].name}</small></div>`;
                     d.onclick = () => {
-                        // UKLÁDÁNÍ DO QUEUES (aby to viděl tvůj DJ panel)
                         db.ref("queues/" + currentDJ + "/" + t.id).set({
-                            track: t.name, artist: t.artists[0].name, img: t.album.images[2].url, votes: 1, timestamp: Date.now()
+                            track: t.name, artist: t.artists[0].name, img: t.album.images[2].url, votes: 1, status: "waiting", timestamp: Date.now()
                         });
                         input.value = ""; res.style.display = "none";
                     };
@@ -85,19 +92,15 @@ input.addEventListener('input', () => {
     }, 400);
 });
 
-// ZOBRAZENÍ FRONTY
 db.ref("queues/" + currentDJ).on("value", snap => {
     let h = "";
     const val = snap.val();
     if (val) {
         Object.entries(val).sort((a,b) => b[1].votes - a[1].votes).forEach(([id, d]) => {
-            h += `<div class="req-card">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <img src="${d.img}" width="40">
-                    <div><b>${d.track}</b><br><small>${d.artist}</small></div>
-                </div>
-                <div><b>${d.votes}</b> <button class="v-btn" onclick="db.ref('queues/${currentDJ}/${id}/votes').transaction(v=>(v||0)+1)">+</button></div>
-            </div>`;
+            if (d.status !== "played") {
+                h += `<div class="req-card"><div style="display:flex;align-items:center;gap:10px;"><img src="${d.img}" width="40"><div><b>${d.track}</b><br><small>${d.artist}</small></div></div>
+                <div><b>${d.votes}</b> <button class="v-btn" onclick="db.ref('queues/${currentDJ}/${id}/votes').transaction(v=>(v||0)+1)">+</button></div></div>`;
+            }
         });
     }
     document.getElementById("l").innerHTML = h;
