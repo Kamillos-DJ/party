@@ -12,12 +12,15 @@
         .search-container { display: flex; flex-direction: column; gap: 15px; }
         .search-wrapper { position: relative; width: 100%; }
         input[type="text"] { width: 100%; padding: 14px 20px; border-radius: 25px; background: #222; color: #fff; box-sizing: border-box; font-size: 16px; outline: none; border: 1px solid #333; }
+        
+        /* Barvy rámečků podle tvého zadání */
         #i { border: 2px solid #1DB954; } 
         #i-tidal { border: 2px solid #00FFFF; }
         .tidal-label { color: #00FFFF; font-size: 13px; margin-bottom: 5px; margin-left: 15px; font-weight: 300; }
+        
         #banned-box { display: none; width: 100%; padding: 10px; border-radius: 12px; border: 2px solid #ff4444; background: #330000; color: #fff; box-sizing: border-box; margin: 8px 0; font-size: 14px; text-align: center; font-weight: bold; z-index: 10000; }
         
-        /* Styl pro položky v našeptávači */
+        /* STYL NAŠEPTVÁVAČE - Texty pod sebou */
         .res-box { display: none; position: absolute; top: 100%; left: 0; right: 0; background: #252525; border-radius: 15px; margin-top: 5px; max-height: 300px; overflow-y: auto; border: 1px solid #444; z-index: 9999; }
         .s-item { padding: 10px 18px; display: flex; align-items: center; gap: 12px; cursor: pointer; border-bottom: 1px solid #333; }
         .s-item:hover { background: #333; }
@@ -27,15 +30,16 @@
 
         .lists-container { display: flex; gap: 20px; margin-top: 30px; flex-wrap: wrap; }
         .list-column { flex: 1; min-width: 320px; }
-        .req-card { position: relative; background: #222; padding: 8px 12px 8px 18px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border: 1px solid #333; overflow: hidden; }
         
-        /* Barva proužku: Modrá pro frontu, šedá pro odehrané */
+        /* KARTY S PROUŽKEM - Modrá fronta, šedá odehrané */
+        .req-card { position: relative; background: #222; padding: 8px 12px 8px 18px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border: 1px solid #333; overflow: hidden; }
         .req-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--bar-color, #4682B4); }
         
         .req-info { display: flex; align-items: center; gap: 12px; overflow: hidden; }
         .req-info b { font-size: 17px; display: block; line-height: 1.2; }
         .req-info small { font-size: 13px; color: #bbb; }
         .req-info img { width: 45px; height: 45px; border-radius: 6px; flex-shrink: 0; }
+        
         .v-btn { background: #1DB954; border: none; color: #fff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 18px; }
         .voted { opacity: 0.2; pointer-events: none; }
         h3 { color: #1DB954; font-size: 13px; text-transform: uppercase; text-align: center; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 15px; }
@@ -45,12 +49,12 @@
 
 <div id="dj-box">
     <div class="search-container">
-        <div class="search-wrapper" id="wrap-spotify">
+        <div class="search-wrapper">
             <input type="text" id="i" placeholder="Hledat a poslat přes Spotify...">
             <div id="r" class="res-box"></div>
         </div>
         <div id="banned-box">Vulgární výrazy nejsou povoleny!</div>
-        <div class="search-wrapper" id="wrap-tidal">
+        <div class="search-wrapper">
             <div class="tidal-label">Hledat a poslat přes Tidal:</div>
             <input type="text" id="i-tidal" placeholder="Hledat na Tidalu...">
             <div id="r-tidal" class="res-box"></div>
@@ -63,7 +67,7 @@
 </div>
 
 <script>
-// SPRÁVNÁ ADRESA WORKERU
+// OPRAVENÁ ADRESA (nesmí být zkrácená)
 const BASE_URL = "https://worker-proud-sun-3351.kamillos-dj.workers.dev";
 
 const BANNED = ["kurva", "kurev", "kurvo", "kurvy", "prcat", "mrd", "kund", "sranec", "stetka", "sracka", "suk", "mamrd", "debil", "chuj", "prdel", "zmrd", "pici", "pico", "picu", "pica", "picku", "picka", "curak", "kokot"];
@@ -126,7 +130,7 @@ function initSearch(inputId, resId, isTidal) {
                         const img = (t.album.images && t.album.images[2]) ? t.album.images[2].url : "";
                         const div = document.createElement("div");
                         div.className = "s-item";
-                        // HTML struktura našeptávače pro text pod sebou
+                        // PŮVODNÍ STRUKTURA NAŠEPTVÁVAČE
                         div.innerHTML = `<img src="${img}"><div><b>${t.name}</b><small>${t.artists[0].name}</small></div>`;
                         div.onclick = () => {
                             const query = encodeURIComponent(t.artists[0].name + " " + t.name);
@@ -164,7 +168,7 @@ db.ref("requests").on("value", snap => {
     if (val) {
         Object.entries(val).sort((a,b) => b[1].votes - a[1].votes).forEach(([id, d]) => {
             const vtd = localStorage.getItem("v_" + id);
-            // Logika barev proužků
+            // Nastavení barvy proužku (modrá pro čekající, šedá pro odehrané)
             const bar = d.status === 'played' ? '#666' : '#4682B4';
             const card = `<div class="req-card" style="--bar-color: ${bar}">
                 <div class="req-info"><img src="${d.img}"><div><b>${d.song}</b><small>${d.artist}</small></div></div>
