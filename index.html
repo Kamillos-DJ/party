@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="cs">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,28 +8,29 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <style>
         body { background: #000; color: #fff; font-family: sans-serif; margin: 0; padding: 10px; }
-        .search { width: 100%; padding: 15px; border-radius: 25px; border: 2px solid #1DB954; background: #111; color: #fff; box-sizing: border-box; }
-        .res { background: #222; border-radius: 10px; display: none; margin: 10px 0; max-height: 200px; overflow: auto; }
+        .search { width: 100%; padding: 15px; border-radius: 25px; border: 2px solid #1DB954; background: #111; color: #fff; box-sizing: border-box; font-size: 16px; }
+        .res { background: #222; border-radius: 10px; display: none; margin: 10px 0; max-height: 300px; overflow-y: auto; border: 1px solid #444; }
         .track { padding: 10px; border-bottom: 1px solid #333; cursor: pointer; display: flex; align-items: center; gap: 10px; }
-        .track img { width: 40px; height: 40px; border-radius: 4px; }
+        .track img { width: 45px; height: 45px; border-radius: 4px; }
         .cols { display: flex; gap: 15px; margin-top: 20px; }
         .col { flex: 1; }
-        .card { background: #181818; padding: 10px; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; border-left: 3px solid #1DB954; }
-        .btn { background: #1DB954; border: none; color: #fff; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; }
-        h3 { font-size: 12px; color: #1DB954; text-align: center; text-transform: uppercase; }
+        .card { background: #181818; padding: 10px; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 13px; border-left: 4px solid #1DB954; }
+        .btn { background: #1DB954; border: none; color: #fff; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; font-weight: bold; }
+        h3 { font-size: 12px; color: #1DB954; text-align: center; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 5px; }
     </style>
 </head>
 <body>
 
-    <input type="text" id="sin" class="search" placeholder="Hledat písničku...">
+    <input type="text" id="sin" class="search" placeholder="Hledat písničku (Spotify)...">
     <div id="sres" class="res"></div>
 
     <div class="cols">
-        <div class="col"><h3>Fronta</h3><div id="q"></div></div>
-        <div class="col"><h3>Hraje</h3><div id="h"></div></div>
+        <div class="col"><h3>🔥 FRONTA</h3><div id="q"></div></div>
+        <div class="col"><h3>✅ ODEHRÁNO</h3><div id="h"></div></div>
     </div>
 
 <script>
+    // --- NASTAVENÍ ---
     const urlParams = new URLSearchParams(window.location.search);
     const djId = urlParams.get('dj') || 'default';
     const path = "requests_" + djId;
@@ -42,55 +43,74 @@
     firebase.initializeApp(cfg);
     const db = firebase.database();
 
+    // --- SPOTIFY AUTH ---
     let tok = "";
     async function getTok() {
-        const r = await fetch("https://accounts.spotify.com/api/token", {
-            method: "POST",
-            headers: { "Authorization": "Basic " + btoa("85eac0730fcf4117a259926c46305337:256e2c4254f34f779e1968025c2585e8") },
-            body: "grant_type=client_credentials"
-        });
-        const d = await r.json(); tok = d.access_token;
+        try {
+            const r = await fetch("https://accounts.spotify.com/api/token", {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Authorization": "Basic " + btoa("85eac0730fcf4117a259926c46305337:256e2c4254f34f779e1968025c2585e8") 
+                },
+                body: "grant_type=client_credentials"
+            });
+            const d = await r.json(); 
+            tok = d.access_token;
+        } catch(e) { console.error("Spotify Auth Error"); }
     }
     getTok();
 
+    // --- VYHLEDÁVÁNÍ ---
     const inEl = document.getElementById('sin');
     const resEl = document.getElementById('sres');
+    let searchTimer;
 
     inEl.oninput = () => {
+        clearTimeout(searchTimer);
         if (inEl.value.length < 3) { resEl.style.display='none'; return; }
-        fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(inEl.value)}&type=track&limit=5`, {
-            headers: { "Authorization": "Bearer " + tok }
-        }).then(r=>r.json()).then(d=>{
-            resEl.innerHTML = "";
-            (d.tracks?.items || []).forEach(t => {
-                const div = document.createElement('div');
-                div.className = 'track';
-                div.innerHTML = `<img src="${t.album.images[2].url}"><div><b>${t.name}</b><br>${t.artists[0].name}</div>`;
-                div.onclick = () => {
-                    db.ref(path + "/" + t.id).transaction(c => {
-                        if (c) return { ...c, v: c.v + 1 };
-                        return { a: t.artists[0].name, s: t.name, i: t.album.images[2].url, v: 1, st: "w" };
+        
+        searchTimer = setTimeout(() => {
+            fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(inEl.value)}&type=track&limit=6`, {
+                headers: { "Authorization": "Bearer " + tok }
+            }).then(r=>r.json()).then(d=>{
+                resEl.innerHTML = "";
+                const items = d.tracks?.items || [];
+                if (items.length > 0) {
+                    resEl.style.display='block';
+                    items.forEach(t => {
+                        const div = document.createElement('div');
+                        div.className = 'track';
+                        div.innerHTML = `<img src="${t.album.images[2]?.url}"><div><b>${t.name}</b><br><small>${t.artists[0].name}</small></div>`;
+                        div.onclick = () => {
+                            db.ref(path + "/" + t.id).transaction(c => {
+                                if (c) return { ...c, v: (c.v || 1) + 1 };
+                                return { a: t.artists[0].name, s: t.name, i: t.album.images[2]?.url, v: 1, st: "w" };
+                            });
+                            inEl.value = ""; resEl.style.display='none';
+                        };
+                        resEl.appendChild(div);
                     });
-                    inEl.value = ""; resEl.style.display='none';
-                };
-                resEl.appendChild(div);
+                }
             });
-            resEl.style.display='block';
-        });
+        }, 400);
     };
 
     window.vte = (id) => db.ref(path + "/" + id + "/v").transaction(v => (v || 0) + 1);
 
+    // --- ŽIVÁ DATA ---
     db.ref(path).on('value', s => {
         const d = s.val();
         let qH = "", hH = "";
-        if (d) Object.entries(d).sort((a,b)=>b[1].v - a[1].v).forEach(([id, r]) => {
-            const html = `<div class="card">
-                <div style="display:flex;align-items:center;gap:10px;"><img src="${r.i}" width="30"><div>${r.s}</div></div>
-                <button onclick="vte('${id}')" class="btn">+</button>
-            </div>`;
-            if (r.st === "p") hH += html; else qH += html;
-        });
+        if (d) {
+            Object.entries(d).sort((a,b)=>b[1].v - a[1].v).forEach(([id, r]) => {
+                const html = `<div class="card">
+                    <div style="display:flex;align-items:center;gap:10px;"><img src="${r.i}" width="35"><div><b>${r.s}</b><br><small>${r.a}</small></div></div>
+                    <div style="text-align:right"><b>${r.v}</b><br><button onclick="vte('${id}')" class="btn">+</button></div>
+                </div>`;
+                if (r.st === "p") hH += html; else qH += html;
+            });
+        }
         document.getElementById('q').innerHTML = qH;
         document.getElementById('h').innerHTML = hH;
     });
