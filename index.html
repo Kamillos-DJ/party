@@ -1,16 +1,85 @@
-<div style="width: 100%; text-align: center;">
-    <iframe 
-        id="party-frame"
-        src="https://kamillos-dj.github.io/party/" 
-        style="width: 100%; height: 800px; border: none; background: transparent;"
-        allow="autoplay; clipboard-write; encrypted-media; fullscreen">
-    </iframe>
-</div>
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <style>
+        body { background-color: #000; color: #fff; font-family: sans-serif; margin: 0; padding: 10px; }
+        #dj-box { max-width: 800px; margin: auto; background: #121212; padding: 20px; border-radius: 15px; border: 1px solid #333; }
+        input { width: 100%; padding: 12px; border-radius: 20px; background: #222; color: #fff; border: 1px solid #1DB954; outline: none; box-sizing: border-box; }
+        .res-box { display: none; background: #252525; border-radius: 10px; margin-top: 5px; max-height: 250px; overflow-y: auto; }
+        .s-item { padding: 10px; display: flex; align-items: center; gap: 10px; cursor: pointer; border-bottom: 1px solid #333; }
+        .s-item img { width: 40px; height: 40px; border-radius: 4px; }
+        .req-card { background: #1a1a1a; padding: 10px; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+        .v-btn { background: #1DB954; border: none; color: #fff; padding: 5px 15px; border-radius: 15px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div id="dj-box">
+        <div style="text-align:center; color:#1DB954; margin-bottom:10px;">DJ: <span id="target-dj">...</span></div>
+        <input type="text" id="i" placeholder="Hledat song na Spotify...">
+        <div id="r" class="res-box"></div>
+        <div id="l" style="margin-top:20px;"></div>
+    </div>
 
 <script>
-// Oprava adresy s DJ jménem
-const params = new URLSearchParams(window.location.search);
-const dj = params.get('dj') || "Kamillos DJ";
-const frame = document.getElementById('party-frame');
-frame.src = "https://kamillos-dj.github.io/party/?dj=" + encodeURIComponent(dj) + "&v=" + Date.now();
+const urlParams = new URLSearchParams(window.location.search);
+const currentDJ = urlParams.get('dj') || "Kamillos DJ";
+document.getElementById('target-dj').innerText = currentDJ;
+
+firebase.initializeApp({
+    apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
+    authDomain: "hudba-na-tuhle-skvelou-party.firebaseapp.com",
+    databaseURL: "https://hudba-na-tuhle-skvelou-party-default-rtdb.europe-west1.firebasedatabase.app/",
+    projectId: "hudba-na-tuhle-skvelou-party"
+});
+const db = firebase.database();
+
+let sToken = "";
+async function getSToken() {
+    try {
+        const r = await fetch("https://api.allorigins.win/get?url=" + encodeURIComponent("https://accounts.spotify.com/api/token"));
+        const d = await r.json();
+        sToken = JSON.parse(d.contents).access_token;
+    } catch(e) { console.error("Spotify error"); }
+}
+getSToken();
+
+const input = document.getElementById('i');
+const res = document.getElementById('r');
+input.addEventListener('input', () => {
+    if (input.value.length < 3) { res.style.display = "none"; return; }
+    fetch("https://api.spotify.com/v1/search?q=" + encodeURIComponent(input.value), {
+        headers: { "Authorization": "Bearer " + sToken }
+    }).then(r => r.json()).then(j => {
+        res.innerHTML = ""; res.style.display = "block";
+        j.tracks.items.forEach(t => {
+            const d = document.createElement("div"); d.className = "s-item";
+            d.innerHTML = `<img src="${t.album.images[2].url}"><div>${t.name}<br><small>${t.artists[0].name}</small></div>`;
+            d.onclick = () => {
+                db.ref("queues/" + currentDJ + "/" + t.id).set({
+                    artist: t.artists[0].name, track: t.name, img: t.album.images[2].url, votes: 1
+                });
+                input.value = ""; res.style.display = "none";
+            };
+            res.appendChild(d);
+        });
+    });
+});
+
+db.ref("queues/" + currentDJ).on("value", snap => {
+    let h = "";
+    const val = snap.val();
+    if (val) {
+        Object.entries(val).forEach(([id, d]) => {
+            h += `<div class="req-card"><div><b>${d.track}</b><br><small>${d.artist}</small></div>
+            <div>${d.votes} <button class="v-btn" onclick="db.ref('queues/${currentDJ}/${id}/votes').transaction(v=>v+1)">+</button></div></div>`;
+        });
+    }
+    document.getElementById("l").innerHTML = h;
+});
 </script>
+</body>
+</html>
