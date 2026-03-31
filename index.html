@@ -1,16 +1,53 @@
-<div id="party-app-target"></div>
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hudba na přání</title>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+    <style>
+        body { background: transparent; color: #fff; font-family: sans-serif; margin: 0; padding: 15px; }
+        .status-bar { color: #1DB954; font-weight: bold; text-align: center; margin-bottom: 20px; border: 1px solid #333; padding: 10px; border-radius: 10px; }
+        .song-card { background: #111; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 5px solid #1DB954; display: flex; justify-content: space-between; }
+        input { width: 100%; padding: 12px; border-radius: 25px; border: 1px solid #1DB954; background: #000; color: #fff; box-sizing: border-box; }
+    </style>
+</head>
+<body>
 
-<script>
-    (function() {
-        // 1. Vezme jméno z adresy v prohlížeči (např. Kamillos DJ)
-        var nyniVProhlizeci = new URLSearchParams(window.location.search).get('dj') || 'DefaultDJ';
+    <div id="status" class="status-bar">Načítání profilu...</div>
+    <input type="text" placeholder="Zadej název skladby...">
+    <div id="list" style="margin-top:20px;"></div>
+
+    <script>
+        // Čisté získání DJ z URL tohoto Iframe
+        const urlParams = new URLSearchParams(window.location.search);
+        const djId = urlParams.get('dj') || "NeznamyDJ";
         
-        // 2. Vytvoří Iframe a PŘIDÁ k němu to jméno + časové razítko proti staré paměti
-        var cilovyKontejner = document.getElementById('party-app-target');
-        var iframeUrl = "https://kamillos-dj.github.io/party/?dj=" + encodeURIComponent(nyniVProhlizeci) + "&ver=" + Date.now();
-        
-        cilovyKontejner.innerHTML = '<iframe src="' + iframeUrl + '" style="width:100%; height:700px; border:none; background:transparent;" allow="autoplay"></iframe>';
-        
-        console.log("Webnode posílá do Iframe DJ: " + nyniVProhlizeci);
-    })();
-</script>
+        document.getElementById('status').innerText = "PŘIPOJENO K: " + djId;
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
+            authDomain: "hudba-na-tuhle-skvelou-party.firebaseapp.com",
+            databaseURL: "https://hudba-na-tuhle-skvelou-party-default-rtdb.firebaseio.com",
+            projectId: "hudba-na-tuhle-skvelou-party"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // Načítání dat z unikátní složky daného DJ
+        db.ref("djs/" + djId + "/requests").on("value", snap => {
+            const data = snap.val();
+            const listDiv = document.getElementById("list");
+            listDiv.innerHTML = "";
+            if (data) {
+                Object.values(data).forEach(s => {
+                    listDiv.innerHTML += `<div class="song-card"><span>${s.song} - ${s.artist}</span><b>${s.votes || 0}</b></div>`;
+                });
+            } else {
+                listDiv.innerHTML = "<p style='text-align:center; color:#444;'>Zatím žádná přání.</p>";
+            }
+        });
+    </script>
+</body>
+</html>
