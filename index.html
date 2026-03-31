@@ -31,12 +31,9 @@
         .st-rejected { color: #ff4444; }
         .v-btn { background: #1DB954; border: none; color: #fff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 18px; font-weight: bold; transition: 0.2s; }
         .v-btn.voted { opacity: 0.2; pointer-events: none; }
-        #error-overlay { display:none; color: #ff4444; text-align: center; padding: 50px; font-weight: bold; }
     </style>
 </head>
 <body>
-
-    <div id="error-overlay">Chyba: Neplatný odkaz (Chybí ID uživatele).</div>
 
     <div id="guest-app">
         <div class="search-wrap">
@@ -44,7 +41,6 @@
             <input type="text" id="search-input" placeholder="Hledej na Spotify...">
             <div id="search-results" class="res-list"></div>
         </div>
-
         <div class="flex-cols">
             <div class="col">
                 <h3>🔥 Aktuální fronta</h3>
@@ -58,55 +54,54 @@
     </div>
 
 <script>
-    // 1. PŘÍSNÁ KONTROLA URL PARAMETRU
-    const params = new URLSearchParams(window.location.search);
-    const djIdFromUrl = params.get('dj'); 
+    // 1. ZÍSKÁNÍ ID Z URL - Pokud tam není, použije se "demo" složka
+    const urlParams = new URLSearchParams(window.location.search);
+    const djId = urlParams.get('dj') || "demo";
+    console.log("Aktivní DJ ID:", djId);
 
-    if (!djIdFromUrl) {
-        document.getElementById('guest-app').style.display = 'none';
-        document.getElementById('error-overlay').style.display = 'block';
-        throw new Error("Missing DJ ID in URL"); 
-    }
-
-    // 2. FIREBASE CONFIG
-    const config = {
+    // 2. KONFIGURACE FIREBASE
+    const firebaseConfig = {
         apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
         authDomain: "hudba-na-tuhle-skvelou-party.firebaseapp.com",
         databaseURL: "https://hudba-na-tuhle-skvelou-party-default-rtdb.firebaseio.com",
         projectId: "hudba-na-tuhle-skvelou-party"
     };
-    firebase.initializeApp(config);
+    firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     
-    // 3. CESTA STRIKTNĚ PODLE URL (djs/ID/requests)
-    const requestsRef = db.ref("djs/" + djIdFromUrl + "/requests");
+    // CESTA: djs / [ID z URL] / requests
+    const requestsRef = db.ref("djs/" + djId + "/requests");
 
-    // Spotify Logic
+    // 3. SPOTIFY TOKEN
     let spotifyToken = "";
-    async function refreshSpotifyToken() {
+    async function getSpotifyToken() {
         try {
-            const r = await fetch("https://accounts.spotify.com/api/token", {
+            const res = await fetch("https://accounts.spotify.com/api/token", {
                 method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded", "Authorization": "Basic " + btoa("85eac0730fcf4117a259926c46305337:256e2c4254f34f779e1968025c2585e8") },
+                headers: { 
+                    "Content-Type": "application/x-www-form-urlencoded", 
+                    "Authorization": "Basic " + btoa("85eac0730fcf4117a259926c46305337:256e2c4254f34f779e1968025c2585e8") 
+                },
                 body: "grant_type=client_credentials"
             });
-            const d = await r.json();
-            spotifyToken = d.access_token;
-        } catch(e) { console.error("Spotify Auth Error"); }
+            const data = await res.json();
+            spotifyToken = data.access_token;
+        } catch(e) { console.error("Spotify Auth Error", e); }
     }
-    refreshSpotifyToken();
+    getSpotifyToken();
 
+    // 4. VYHLEDÁVÁNÍ
     const input = document.getElementById('search-input');
     const resDiv = document.getElementById('search-results');
-    let searchTimer;
+    let timer;
 
     input.addEventListener('input', (e) => {
-        clearTimeout(searchTimer);
-        let query = e.target.value;
-        if (query.trim().length < 3) { resDiv.style.display = "none"; return; }
-        searchTimer = setTimeout(() => {
+        clearTimeout(timer);
+        let q = e.target.value;
+        if (q.trim().length < 3) { resDiv.style.display = "none"; return; }
+        timer = setTimeout(() => {
             if (!spotifyToken) return;
-            fetch("https://api.spotify.com/v1/search?q=" + encodeURIComponent(query) + "&type=track&limit=6", {
+            fetch("https://api.spotify.com/v1/search?q=" + encodeURIComponent(q) + "&type=track&limit=6", {
                 headers: { "Authorization": "Bearer " + spotifyToken }
             })
             .then(r => r.json())
@@ -121,7 +116,7 @@
                         item.className = "s-item";
                         item.innerHTML = `<img src="${img}"><div><b>${t.name}</b><small>${t.artists[0].name}</small></div>`;
                         item.onclick = () => {
-                            addRequest(t.artists[0].name, t.name, img, t.id);
+                            addSong(t.artists[0].name, t.name, img, t.id);
                             input.value = ""; resDiv.style.display = "none";
                         };
                         resDiv.appendChild(item);
@@ -131,11 +126,11 @@
         }, 400);
     });
 
-    function addRequest(artist, song, img, id) {
+    function addSong(artist, song, img, id) {
         if (localStorage.getItem("voted_" + id)) return;
-        requestsRef.child(id).transaction(currentData => {
-            if (currentData) return { ...currentData, votes: (currentData.votes || 0) + 1 };
-            return { artist: artist, song: song, img: img, votes: 1, status: "waiting", timestamp: Date.now() };
+        requestsRef.child(id).transaction(current => {
+            if (current) return { ...current, votes: (current.votes || 0) + 1 };
+            return { artist, song, img, votes: 1, status: "waiting", timestamp: Date.now() };
         }, () => localStorage.setItem("voted_" + id, "1"));
     }
 
@@ -144,7 +139,7 @@
         requestsRef.child(id + "/votes").transaction(v => (v || 0) + 1, () => localStorage.setItem("voted_" + id, "1"));
     };
 
-    // Realtime Sync
+    // 5. REALTIME SYNC - Tady se děje to kouzlo rozdělení
     requestsRef.on("value", snapshot => {
         const data = snapshot.val();
         const qList = document.getElementById("queue-list");
