@@ -4,24 +4,16 @@
     <meta charset="UTF-8">
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-    <style>
-        body { background: transparent; color: #fff; font-family: sans-serif; margin: 0; padding: 10px; }
-        input { width: 100%; padding: 10px; border-radius: 20px; border: 1px solid #1DB954; background: #000; color: #fff; box-sizing: border-box; }
-        .song-card { background: #111; padding: 10px; margin: 5px 0; border-radius: 8px; border-left: 4px solid #1DB954; display: flex; justify-content: space-between; }
-        .v-btn { background: #1DB954; border: none; color: #fff; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; }
-    </style>
 </head>
 <body>
-    <input type="text" id="search" placeholder="Hledat skladbu...">
-    <div id="queue"></div>
+    <div id="app">Načítání aplikace...</div>
 
     <script>
-        // ŽÁDNÉ "wnd", ŽÁDNÉ "parent" - bereme jen to, co je přímo v URL tohoto souboru
+        // Čteme DJ PŘÍMO z adresy tohoto Iframe, ne zvenku
         const params = new URLSearchParams(window.location.search);
-        const djId = params.get('dj') || "NeznamyDJ";
-        
-        console.log("Připojený DJ:", djId);
+        const djId = params.get('dj') || "Neznamy";
 
+        // FIREBASE START
         const firebaseConfig = {
             apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
             authDomain: "hudba-na-tuhle-skvelou-party.firebaseapp.com",
@@ -30,19 +22,14 @@
         };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-        const ref = db.ref("djs/" + djId + "/requests");
+        
+        // Tady se to dělí do složek podle DJ
+        const requestsRef = db.ref("djs/" + djId + "/requests");
 
-        // Zobrazení dat (jednoduchý test funkčnosti)
-        ref.on("value", snap => {
-            const data = snap.val();
-            const cont = document.getElementById("queue");
-            cont.innerHTML = "";
-            if (data) {
-                Object.entries(data).forEach(([id, s]) => {
-                    cont.innerHTML += `<div class="song-card"><span>${s.song} - ${s.artist}</span><b>${s.votes || 0}</b></div>`;
-                });
-            }
-        });
+        // TEST FUNKČNOSTI - vypíšeme jméno DJ na obrazovku
+        document.getElementById('app').innerHTML = "<h1>DJ: " + djId + "</h1><p>Pokud vidíš správné jméno, databáze je oddělená.</p>";
+        
+        console.log("Databáze připojena pro složku: djs/" + djId);
     </script>
 </body>
 </html>
