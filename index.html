@@ -52,8 +52,13 @@
 </div>
 
 <script>
+    // 1. NASTAVENÍ IDENTITY DJ - ZDE JE OPRAVA
     const urlParams = new URLSearchParams(window.location.search);
-    const djId = urlParams.get('dj') || "Kamillos DJ";
+    // Bereme ID DJ z adresy, pokud tam není, použijeme "DEFAULT_LIST" místo "Kamillos DJ"
+    // To nám hned v konzoli ukáže, jestli se jméno předalo správně.
+    const djId = urlParams.get('dj') || "NO_DJ_SPECIFIED";
+    console.log("--- PŘIPOJOVÁNÍ K DATABÁZI ---");
+    console.log("DJ ID z URL:", djId);
 
     const badWords = ["kokot", "pica", "kurva", "mrdka", "zmrd", "debil"];
     function isClean(text) {
@@ -68,8 +73,11 @@
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
+    
+    // CESTA V DATABÁZI - Nyní unikátní pro každého DJ
     const requestsRef = db.ref("djs/" + djId + "/requests");
 
+    // Zbytek kódu (Spotify a Realtime)
     let spotifyToken = "";
     async function getSpotifyToken() {
         try {
