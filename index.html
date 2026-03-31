@@ -3,98 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hudba na přání</title>
+    <title>Hudba na přání | Moderátor-Dj</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <style>
-        /* Základní reset a barvy */
-        body { background-color: #000; color: #fff; font-family: 'Inter', sans-serif; margin: 0; padding: 20px; -webkit-font-smoothing: antialiased; }
+        /* ZÁKLADNÍ STYL WEBU */
+        body { background-color: #000; color: #fff; font-family: 'Inter', sans-serif; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
         
-        /* Hlavní kontejner - černý box z tvých screenshotů */
-        #dj-box { 
-            max-width: 1000px; 
-            margin: 40px auto; 
-            background: #121212; 
-            padding: 30px; 
-            border-radius: 25px; 
-            border: 1px solid #333;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
+        /* HORNÍ LIŠTA (HEADER) - VRÁCENO PODLE SCREENSHOTU */
+        .top-nav { background: #000; padding: 15px 50px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; }
+        .logo-area { display: flex; align-items: center; gap: 15px; }
+        .logo-box { background: #111; border: 1px solid #333; padding: 5px 10px; border-radius: 5px; font-weight: bold; color: #fff; }
+        .site-name { font-size: 24px; font-weight: 300; letter-spacing: 1px; }
+        .nav-menu { display: flex; gap: 20px; list-style: none; margin: 0; padding: 0; }
+        .nav-menu a { color: #fff; text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.3s; }
+        .nav-menu a:hover { color: #1DB954; }
 
-        /* Vyhledávání */
-        .search-container { display: flex; flex-direction: column; gap: 5px; margin-bottom: 30px; }
-        .search-label { color: #bbb; font-size: 13px; margin-bottom: 10px; margin-left: 15px; font-weight: 400; letter-spacing: 0.5px; text-transform: uppercase; }
-        .search-wrapper { position: relative; width: 100%; }
-        input[type="text"] { width: 100%; padding: 15px 25px; border-radius: 35px; background: #1a1a1a; color: #fff; box-sizing: border-box; font-size: 17px; outline: none; border: 2px solid #1DB954; }
+        /* HLAVNÍ KONTEJNER PRO DJ SLOŽKU */
+        #dj-box { max-width: 1100px; margin: 40px auto; background: #0a0a0a; padding: 35px; border-radius: 30px; border: 1px solid #1a1a1a; }
         
-        /* Chybové hlášky a výsledky */
-        #banned-box { display: none; width: 100%; padding: 12px; border-radius: 15px; border: 2px solid #ff4444; background: #330000; color: #fff; margin: 10px 0; font-size: 14px; text-align: center; font-weight: bold; }
-        .res-box { display: none; position: absolute; top: 105%; left: 0; right: 0; background: #252525; border-radius: 20px; max-height: 350px; overflow-y: auto; border: 1px solid #444; z-index: 9999; box-shadow: 0 10px 25px rgba(0,0,0,0.8); }
-        .s-item { padding: 12px 20px; display: flex; align-items: center; gap: 15px; cursor: pointer; border-bottom: 1px solid #333; }
-        .s-item:hover { background: #333; }
-        .s-item img { width: 45px; height: 45px; border-radius: 6px; }
+        /* VYHLEDÁVÁNÍ - DESIGN Z IMAGE_F82EBA */
+        .search-container { margin-bottom: 40px; }
+        .search-label { color: #aaa; font-size: 12px; margin-bottom: 12px; margin-left: 20px; text-transform: uppercase; letter-spacing: 1px; }
+        input[type="text"] { width: 100%; padding: 16px 28px; border-radius: 40px; background: #111; color: #fff; border: 2px solid #1DB954; font-size: 17px; outline: none; box-sizing: border-box; }
+        
+        .res-box { display: none; position: absolute; background: #181818; border-radius: 20px; width: 100%; max-width: 1030px; z-index: 100; border: 1px solid #333; margin-top: 5px; max-height: 400px; overflow-y: auto; }
+        .s-item { padding: 15px 25px; display: flex; align-items: center; gap: 15px; cursor: pointer; border-bottom: 1px solid #222; }
+        .s-item:hover { background: #222; }
+        .s-item img { width: 50px; height: 50px; border-radius: 4px; }
 
-        /* Sloupce Fronta / Odehráno */
+        /* SLOUPCE A KARTY */
         .lists-container { display: flex; gap: 30px; flex-wrap: wrap; }
         .list-column { flex: 1; min-width: 320px; }
-        h3 { color: #1DB954; font-size: 14px; text-transform: uppercase; text-align: center; border-bottom: 1px solid #333; padding-bottom: 15px; margin-bottom: 25px; letter-spacing: 1.5px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        h3 { font-size: 13px; color: #1DB954; text-transform: uppercase; text-align: center; letter-spacing: 2px; margin-bottom: 30px; border-bottom: 1px solid #1a1a1a; padding-bottom: 15px; }
 
-        /* Karty s písničkami - ta větší verze, co jsi chtěl */
-        .req-card { position: relative; background: #222; padding: 12px 18px; border-radius: 16px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; border: 1px solid #333; overflow: hidden; }
-        .req-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--bar-color, #4682B4); }
-        .req-info { display: flex; align-items: center; gap: 15px; overflow: hidden; }
-        .req-info img { width: 50px; height: 50px; border-radius: 8px; flex-shrink: 0; }
-        .req-info b { font-size: 16px; display: block; line-height: 1.2; color: #fff; margin-bottom: 2px; }
-        .req-info small { font-size: 13px; color: #bbb; }
+        .req-card { position: relative; background: #161616; padding: 12px 20px; border-radius: 15px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; border: 1px solid #222; }
+        .req-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--bar-color); border-radius: 15px 0 0 15px; }
+        .req-info { display: flex; align-items: center; gap: 15px; }
+        .req-info img { width: 55px; height: 55px; border-radius: 8px; }
+        .req-info b { font-size: 16px; display: block; margin-bottom: 3px; }
+        .req-info small { color: #888; font-size: 13px; }
 
-        /* Statusy a Hlasování */
-        .status-tag { font-size: 10px; font-weight: 900; text-transform: uppercase; margin-right: 12px; padding: 3px 8px; border-radius: 5px; background: rgba(255,255,255,0.05); }
+        /* STATUS TAGY */
+        .status-tag { font-size: 9px; font-weight: 800; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; margin-right: 15px; background: rgba(255,255,255,0.05); }
+        .st-waiting { color: #4682B4; }
         .st-accepted { color: #1DB954; }
         .st-rejected { color: #ff4444; }
-        .st-waiting { color: #4682B4; }
-        
-        .vote-section { display: flex; align-items: center; gap: 12px; }
-        .vote-count { font-size: 18px; font-weight: bold; color: #fff; min-width: 20px; text-align: center; }
-        .v-btn { background: #1DB954; border: none; color: #fff; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 22px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
-        .v-btn:active { transform: scale(0.9); }
-        .voted { opacity: 0.3; pointer-events: none; filter: grayscale(1); }
 
-        @media (max-width: 600px) {
-            #dj-box { padding: 15px; margin: 10px auto; }
-            .lists-container { gap: 15px; }
-        }
+        .v-btn { background: #1DB954; border: none; color: #fff; width: 42px; height: 42px; border-radius: 50%; cursor: pointer; font-size: 22px; font-weight: bold; }
+        .v-btn.voted { opacity: 0.2; pointer-events: none; }
+
+        @media (max-width: 800px) { .top-nav { padding: 15px; flex-direction: column; gap: 15px; } .nav-menu { font-size: 12px; gap: 10px; } }
     </style>
 </head>
 <body>
 
-<div id="dj-box">
-    <div class="search-container">
-        <div class="search-label">VYHLEDAT SPOTIFY, TIDAL</div>
-        <div class="search-wrapper">
-            <input type="text" id="i" placeholder="Zadej název skladby nebo interpreta...">
-            <div id="r" class="res-box"></div>
+    <header class="top-nav">
+        <div class="logo-area">
+            <div class="logo-box">DjK</div>
+            <div class="site-name">Moderátor-Dj</div>
         </div>
-        <div id="banned-box">Vulgární výrazy nejsou povoleny !</div>
-    </div>
+        <ul class="nav-menu">
+            <li><a href="#">Úvod</a></li>
+            <li><a href="#">O nás</a></li>
+            <li><a href="#">Služby</a></li>
+            <li><a href="#">Ceník</a></li>
+            <li><a href="#">Rezervace</a></li>
+            <li><a href="#">Fotogalerie</a></li>
+            <li><a href="#">Kontakt</a></li>
+            <li><a href="#">Reference</a></li>
+        </ul>
+    </header>
 
-    <div class="lists-container">
-        <div class="list-column">
-            <h3>🔥 AKTUÁLNĚ VE FRONTĚ</h3>
-            <div id="l"></div>
+    <div id="dj-box">
+        <div class="search-container">
+            <div class="search-label">VYHLEDAT SPOTIFY, TIDAL</div>
+            <div style="position: relative;">
+                <input type="text" id="i" placeholder="Zadej název skladby nebo interpreta...">
+                <div id="r" class="res-box"></div>
+            </div>
         </div>
-        <div class="list-column">
-            <h3>✅ ODEHRÁNO</h3>
-            <div id="h"></div>
+
+        <div class="lists-container">
+            <div class="list-column">
+                <h3>🔥 AKTUÁLNĚ VE FRONTĚ</h3>
+                <div id="l"></div>
+            </div>
+            <div class="list-column">
+                <h3>✅ ODEHRÁNO</h3>
+                <div id="h"></div>
+            </div>
         </div>
     </div>
-</div>
 
 <script>
-    // Načtení DJ z URL
+    // 1. IZOLACE DAT PODLE DJ V URL
     const urlParams = new URLSearchParams(window.location.search);
     const djName = urlParams.get('dj') || "default";
 
-    // Konfigurace tvé Firebase
     const cfg = {
         apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
         authDomain: "hudba-na-tuhle-skvelou-party.firebaseapp.com",
@@ -104,10 +110,10 @@
     firebase.initializeApp(cfg);
     const db = firebase.database();
     
-    // Cesta do databáze - specificky pro každého DJ
+    // Cesta v databázi teď vede do složky konkrétního DJ
     const dbRef = db.ref("djs/" + djName + "/requests");
 
-    // Spotify Token logika
+    // 2. SPOTIFY API
     let sToken = "";
     async function getSToken() {
         try {
@@ -118,13 +124,10 @@
             });
             const d = await r.json();
             sToken = d.access_token;
-        } catch(e) { console.error("Spotify Auth Error"); }
+        } catch(e) { console.log("Spotify Auth Error"); }
     }
     getSToken();
 
-    // Banned slova
-    const BANNED = ["kurva", "kurev", "kurvo", "kurvy", "prcat", "mrd", "kund", "sranec", "stetka", "sracka", "suk", "mamrd", "debil", "chuj", "prdel", "zmrd", "pici", "pico", "picu", "pica", "curak", "kokot"];
-    
     const input = document.getElementById('i');
     const res = document.getElementById('r');
     let timer;
@@ -133,7 +136,6 @@
         clearTimeout(timer);
         let v = e.target.value;
         if (v.trim().length < 3) { res.style.display = "none"; return; }
-        
         timer = setTimeout(() => {
             if (!sToken) return;
             fetch("https://api.spotify.com/v1/search?q=" + encodeURIComponent(v) + "&type=track&limit=6", {
@@ -174,18 +176,17 @@
         dbRef.child(id + "/votes").transaction(v => (v || 0) + 1, () => localStorage.setItem("v_" + id, "1"));
     };
 
+    // 3. NAČÍTÁNÍ DAT ZE SPRÁVNÉ SLOŽKY DJ
     dbRef.on("value", snap => {
         const val = snap.val();
-        const listL = document.getElementById("l");
-        const listH = document.getElementById("h");
-        listL.innerHTML = ""; listH.innerHTML = "";
-        
+        document.getElementById("l").innerHTML = "";
+        document.getElementById("h").innerHTML = "";
         if (val) {
             Object.entries(val).sort((a,b) => b[1].votes - a[1].votes).forEach(([id, d]) => {
                 const vtd = localStorage.getItem("v_" + id);
                 let sTxt = d.status === 'accepted' ? 'PŘIJATO' : (d.status === 'rejected' ? 'ZAMÍTNUTO' : 'ČEKÁ');
                 let sCls = d.status === 'accepted' ? 'st-accepted' : (d.status === 'rejected' ? 'st-rejected' : 'st-waiting');
-                let barCol = d.status === 'accepted' ? '#1DB954' : (d.status === 'rejected' ? '#ff4444' : (d.status === 'played' ? '#666' : '#4682B4'));
+                let barCol = d.status === 'accepted' ? '#1DB954' : (d.status === 'rejected' ? '#ff4444' : (d.status === 'played' ? '#444' : '#4682B4'));
 
                 const card = `
                     <div class="req-card" style="--bar-color: ${barCol}">
@@ -193,19 +194,17 @@
                             <img src="${d.img}">
                             <div><b>${d.song}</b><small>${d.artist}</small></div>
                         </div>
-                        <div class="vote-section">
-                            ${d.status !== 'played' ? `<span class="status-tag ${sCls}">${sTxt}</span>` : ''}
-                            <span class="vote-count">${d.votes || 0}</span>
-                            ${d.status !== 'played' ? `<button onclick="vote('${id}')" class="v-btn ${vtd ? 'voted' : ''}">+</button>` : ''}
+                        <div style="display:flex; align-items:center;">
+                            <span class="status-tag ${sCls}">${sTxt}</span>
+                            <b style="font-size:18px; margin-right:15px;">${d.votes || 0}</b>
+                            <button onclick="vote('${id}')" class="v-btn ${vtd ? 'voted' : ''}">+</button>
                         </div>
                     </div>`;
-                
-                if (d.status === "played") listH.innerHTML += card; 
-                else listL.innerHTML += card;
+                if (d.status === "played") document.getElementById("h").innerHTML += card; 
+                else document.getElementById("l").innerHTML += card;
             });
         }
     });
 </script>
-
 </body>
 </html>
