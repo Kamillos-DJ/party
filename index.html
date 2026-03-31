@@ -7,46 +7,36 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <style>
-        /* Čistý design pro iframe na Webnode */
         body { background: transparent; color: #fff; font-family: 'Inter', sans-serif; margin: 0; padding: 5px; -webkit-font-smoothing: antialiased; }
-        
         #guest-app { max-width: 900px; margin: auto; }
-
-        /* Vyhledávací pole */
         .search-wrap { position: relative; margin-bottom: 30px; }
         .label { color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; padding-left: 10px; }
         input[type="text"] { width: 100%; padding: 14px 22px; border-radius: 30px; background: #111; color: #fff; border: 2px solid #1DB954; font-size: 16px; outline: none; box-sizing: border-box; }
-        
-        /* Výsledky vyhledávání */
         .res-list { display: none; position: absolute; background: #1a1a1a; border: 1px solid #333; border-radius: 15px; width: 100%; z-index: 100; margin-top: 5px; max-height: 280px; overflow-y: auto; box-shadow: 0 10px 20px rgba(0,0,0,0.6); }
         .s-item { padding: 10px 15px; display: flex; align-items: center; gap: 12px; cursor: pointer; border-bottom: 1px solid #222; }
         .s-item:hover { background: #222; }
         .s-item img { width: 40px; height: 40px; border-radius: 4px; }
-
-        /* Sloupce Fronta / Historie */
         .flex-cols { display: flex; gap: 20px; flex-wrap: wrap; }
         .col { flex: 1; min-width: 280px; }
         h3 { font-size: 11px; color: #1DB954; text-transform: uppercase; text-align: center; letter-spacing: 2px; margin-bottom: 20px; border-bottom: 1px solid #222; padding-bottom: 8px; }
-
-        /* Karta písničky (Hostovská verze) */
         .song-card { position: relative; background: #161616; padding: 10px 15px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border: 1px solid #222; }
         .song-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--line); border-radius: 12px 0 0 12px; }
         .song-info { display: flex; align-items: center; gap: 10px; }
         .song-info img { width: 45px; height: 45px; border-radius: 6px; }
         .song-info b { font-size: 14px; display: block; color: #fff; line-height: 1.2; }
         .song-info small { color: #888; font-size: 11px; }
-
-        /* Prvky interakce */
         .status { font-size: 9px; font-weight: bold; padding: 3px 6px; border-radius: 4px; text-transform: uppercase; margin-right: 8px; background: rgba(255,255,255,0.05); }
         .st-waiting { color: #4682B4; }
         .st-accepted { color: #1DB954; }
         .st-rejected { color: #ff4444; }
-
         .v-btn { background: #1DB954; border: none; color: #fff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 18px; font-weight: bold; transition: 0.2s; }
         .v-btn.voted { opacity: 0.2; pointer-events: none; }
+        #error-overlay { display:none; color: #ff4444; text-align: center; padding: 50px; font-weight: bold; }
     </style>
 </head>
 <body>
+
+    <div id="error-overlay">Chyba: Neplatný odkaz (Chybí ID uživatele).</div>
 
     <div id="guest-app">
         <div class="search-wrap">
@@ -68,11 +58,17 @@
     </div>
 
 <script>
-    // 1. ZÍSKÁNÍ IDENTIFIKÁTORU DJ (Z URL PARAMETRU ?dj=...)
+    // 1. PŘÍSNÁ KONTROLA URL PARAMETRU
     const params = new URLSearchParams(window.location.search);
-    const currentDjId = params.get('dj') || "demo"; // Pokud v URL nic není, uvidí "demo" složku
+    const djIdFromUrl = params.get('dj'); 
 
-    // 2. FIREBASE KONFIGURACE
+    if (!djIdFromUrl) {
+        document.getElementById('guest-app').style.display = 'none';
+        document.getElementById('error-overlay').style.display = 'block';
+        throw new Error("Missing DJ ID in URL"); 
+    }
+
+    // 2. FIREBASE CONFIG
     const config = {
         apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
         authDomain: "hudba-na-tuhle-skvelou-party.firebaseapp.com",
@@ -82,10 +78,10 @@
     firebase.initializeApp(config);
     const db = firebase.database();
     
-    // CESTA DO DATABÁZE PODLE TVÝCH NOVÝCH PRAVIDEL: djs / [DJ_ID] / requests
-    const requestsRef = db.ref("djs/" + currentDjId + "/requests");
+    // 3. CESTA STRIKTNĚ PODLE URL (djs/ID/requests)
+    const requestsRef = db.ref("djs/" + djIdFromUrl + "/requests");
 
-    // 3. SPOTIFY LOGIKA (TOKEN)
+    // Spotify Logic
     let spotifyToken = "";
     async function refreshSpotifyToken() {
         try {
@@ -100,7 +96,6 @@
     }
     refreshSpotifyToken();
 
-    // 4. VYHLEDÁVÁNÍ
     const input = document.getElementById('search-input');
     const resDiv = document.getElementById('search-results');
     let searchTimer;
@@ -109,7 +104,6 @@
         clearTimeout(searchTimer);
         let query = e.target.value;
         if (query.trim().length < 3) { resDiv.style.display = "none"; return; }
-        
         searchTimer = setTimeout(() => {
             if (!spotifyToken) return;
             fetch("https://api.spotify.com/v1/search?q=" + encodeURIComponent(query) + "&type=track&limit=6", {
@@ -137,24 +131,20 @@
         }, 400);
     });
 
-    // 5. ODESLÁNÍ DO DATABÁZE
     function addRequest(artist, song, img, id) {
         if (localStorage.getItem("voted_" + id)) return;
         requestsRef.child(id).transaction(currentData => {
-            if (currentData) {
-                return { ...currentData, votes: (currentData.votes || 0) + 1 };
-            }
+            if (currentData) return { ...currentData, votes: (currentData.votes || 0) + 1 };
             return { artist: artist, song: song, img: img, votes: 1, status: "waiting", timestamp: Date.now() };
         }, () => localStorage.setItem("voted_" + id, "1"));
     }
 
-    // 6. HLASOVÁNÍ
     window.handleVote = (id) => {
         if (localStorage.getItem("voted_" + id)) return;
         requestsRef.child(id + "/votes").transaction(v => (v || 0) + 1, () => localStorage.setItem("voted_" + id, "1"));
     };
 
-    // 7. ZOBRAZENÍ DAT (REALTIME)
+    // Realtime Sync
     requestsRef.on("value", snapshot => {
         const data = snapshot.val();
         const qList = document.getElementById("queue-list");
@@ -162,7 +152,6 @@
         qList.innerHTML = ""; hList.innerHTML = "";
         
         if (data) {
-            // Seřazení podle hlasů
             Object.entries(data).sort((a,b) => b[1].votes - a[1].votes).forEach(([id, song]) => {
                 const hasVoted = localStorage.getItem("voted_" + id);
                 let label = song.status === 'accepted' ? 'PŘIJATO' : (song.status === 'rejected' ? 'ZAMÍTNUTO' : 'ČEKÁ');
@@ -188,6 +177,5 @@
         }
     });
 </script>
-
 </body>
 </html>
