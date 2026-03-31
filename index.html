@@ -20,21 +20,15 @@
     .s-item img { width: 40px; height: 40px; border-radius: 6px; }
     .lists-container { display: flex; gap: 20px; margin-top: 30px; flex-wrap: wrap; }
     .list-column { flex: 1; min-width: 320px; }
-    
-    /* VRÁCENO: Původní padding 8px 12px 8px 18px */
     .req-card { position: relative; background: #222; padding: 8px 12px 8px 18px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border: 1px solid #333; overflow: hidden; }
     .req-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--bar-color, #4682B4); }
     
-    .req-info { display: flex; align-items: center; gap: 12px; overflow: hidden; }
-    
-    /* ZACHOVÁNO: Menší písmo */
-    .req-info b { font-size: 14px; display: block; line-height: 1.2; }
-    .req-info small { font-size: 12px; color: #bbb; }
-    
-    /* VRÁCENO: Původní velikost obrázku 45px */
+    /* Všechno písmo v kartách svítí bíle */
+    .req-info b { font-size: 17px; display: block; line-height: 1.2; color: #ffffff !important; }
+    .req-info small { font-size: 13px; color: #bbb; }
     .req-info img { width: 45px; height: 45px; border-radius: 6px; flex-shrink: 0; }
     
-    /* ZACHOVÁNO: Status texty u proužků */
+    /* Status tagy */
     .status-tag { font-size: 10px; font-weight: 800; text-transform: uppercase; margin-right: 12px; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.05); }
     .st-accepted { color: #1DB954; }
     .st-rejected { color: #ff4444; }
@@ -180,7 +174,7 @@ db.ref("requests").on("value", snap => {
                 '<div class="req-info"><img src="' + d.img + '"><div><b>' + d.song + '</b><small>' + d.artist + '</small></div></div>' +
                 '<div style="display:flex;align-items:center;">' + 
                 (d.status !== 'played' ? '<span class="status-tag ' + statusClass + '">' + statusText + '</span>' : '') +
-                '<b style="font-size:16px; margin-right:12px;">' + (d.votes||0) + '</b>' + 
+                '<b style="font-size:17px; margin-right:12px; color: #fff;">' + (d.votes||0) + '</b>' + 
                 (d.status !== 'played' ? '<button onclick="vote(\'' + id + '\')" class="v-btn ' + (vtd?'voted':'') + '">+</button>' : '') + 
                 '</div>' +
             '</div>';
