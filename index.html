@@ -1,40 +1,16 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-</head>
-<body style="background:#000; color:#fff; font-family:sans-serif;">
-    <div id="check">Načítání...</div>
-    <div id="list"></div>
+<div id="party-app-target"></div>
 
-    <script>
-        // ŽÁDNÉ wnd, ŽÁDNÉ parent. Jen čistá URL adresa.
-        const urlParams = new URLSearchParams(window.location.search);
-        const djId = urlParams.get('dj') || "Neznamy";
+<script>
+    (function() {
+        // 1. Vezme jméno z adresy v prohlížeči (např. Kamillos DJ)
+        var nyniVProhlizeci = new URLSearchParams(window.location.search).get('dj') || 'DefaultDJ';
         
-        document.getElementById('check').innerHTML = "Aplikace běží pro: <b>" + djId + "</b>";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
-            authDomain: "hudba-na-tuhle-skvelou-party.firebaseapp.com",
-            databaseURL: "https://hudba-na-tuhle-skvelou-party-default-rtdb.firebaseio.com",
-            projectId: "hudba-na-tuhle-skvelou-party"
-        };
-        firebase.initializeApp(firebaseConfig);
-
-        // Připojení k unikátní složce DJ v databázi
-        firebase.database().ref("djs/" + djId + "/requests").on("value", snap => {
-            const data = snap.val();
-            let html = "";
-            if (data) {
-                Object.values(data).forEach(s => {
-                    html += `<div style="border-bottom:1px solid #222; padding:10px;">${s.song}</div>`;
-                });
-            }
-            document.getElementById('list').innerHTML = html || "Žádná přání.";
-        });
-    </script>
-</body>
-</html>
+        // 2. Vytvoří Iframe a PŘIDÁ k němu to jméno + časové razítko proti staré paměti
+        var cilovyKontejner = document.getElementById('party-app-target');
+        var iframeUrl = "https://kamillos-dj.github.io/party/?dj=" + encodeURIComponent(nyniVProhlizeci) + "&ver=" + Date.now();
+        
+        cilovyKontejner.innerHTML = '<iframe src="' + iframeUrl + '" style="width:100%; height:700px; border:none; background:transparent;" allow="autoplay"></iframe>';
+        
+        console.log("Webnode posílá do Iframe DJ: " + nyniVProhlizeci);
+    })();
+</script>
