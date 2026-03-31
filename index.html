@@ -5,14 +5,16 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
-<body style="background:transparent; color:#fff; font-family:sans-serif;">
-    <div id="status">Připojování...</div>
-    <div id="output"></div>
+<body style="background:#000; color:#fff; font-family:sans-serif; padding:20px;">
+    <div id="dj-info" style="color:#1DB954; font-weight:bold; margin-bottom:20px;"></div>
+    <div id="status">Připojování k databázi...</div>
+    <div id="requests-list"></div>
 
     <script>
-        // Čisté načtení parametrů bez ohledu na Webnode
+        // Bereme DJ jen z URL adresy Iframe
         const urlParams = new URLSearchParams(window.location.search);
-        const djId = urlParams.get('dj') || "Neznamy";
+        const djId = urlParams.get('dj') || "NeznamyDJ";
+        document.getElementById('dj-info').innerText = "Aktivní profil: " + djId;
 
         const firebaseConfig = {
             apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
@@ -22,18 +24,21 @@
         };
         firebase.initializeApp(firebaseConfig);
         
-        document.getElementById('status').innerText = "Aktivní DJ: " + djId;
+        // Cesta v databázi je teď unikátní pro každého DJ
+        const dbRef = firebase.database().ref("djs/" + djId + "/requests");
 
-        // Načítání dat z unikátní složky DJ
-        firebase.database().ref("djs/" + djId + "/requests").on("value", snap => {
-            const list = snap.val();
+        dbRef.on("value", (snapshot) => {
+            document.getElementById('status').innerText = "Seznam skladeb:";
+            const data = snapshot.val();
             let html = "";
-            if(list) {
-                Object.values(list).forEach(s => {
-                    html += `<div>${s.song} (Hlasů: ${s.votes || 0})</div>`;
+            if (data) {
+                Object.values(data).forEach(item => {
+                    html += `<div style="padding:10px; border-bottom:1px solid #333;">${item.song} - ${item.artist}</div>`;
                 });
             }
-            document.getElementById('output').innerHTML = html || "Žádné písničky.";
+            document.getElementById('requests-list').innerHTML = html || "Zatím žádná přání.";
+        }, (error) => {
+            document.getElementById('status').innerText = "Chyba DB: " + error.message;
         });
     </script>
 </body>
