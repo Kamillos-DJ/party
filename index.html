@@ -43,7 +43,7 @@
         </div>
         <div class="flex-cols">
             <div class="col">
-                <h3>🔥 Aktuální fronta</h3>
+                <h3>🔥 Aktuálně ve frontě</h3>
                 <div id="queue-list"></div>
             </div>
             <div class="col">
@@ -54,29 +54,33 @@
     </div>
 
 <script>
-    // 1. ZÍSKÁNÍ ID Z URL - Pokud tam není, použije se "demo" složka
+    // 1. IDENTIFIKACE DJ Z URL
     const urlParams = new URLSearchParams(window.location.search);
     const djId = urlParams.get('dj') || "demo";
     console.log("Aktivní DJ ID:", djId);
 
-    // 2. KONFIGURACE FIREBASE
-    const firebaseConfig = {
+    // 2. KONTROLA VULGARISMŮ
+    const badWords = ["kokot", "pica", "kurva", "mrdka", "zmrd", "debil"];
+    function isClean(text) {
+        return !badWords.some(word => text.toLowerCase().includes(word));
+    }
+
+    // 3. FIREBASE
+    const config = {
         apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
         authDomain: "hudba-na-tuhle-skvelou-party.firebaseapp.com",
         databaseURL: "https://hudba-na-tuhle-skvelou-party-default-rtdb.firebaseio.com",
         projectId: "hudba-na-tuhle-skvelou-party"
     };
-    firebase.initializeApp(firebaseConfig);
+    firebase.initializeApp(config);
     const db = firebase.database();
-    
-    // CESTA: djs / [ID z URL] / requests
     const requestsRef = db.ref("djs/" + djId + "/requests");
 
-    // 3. SPOTIFY TOKEN
+    // 4. SPOTIFY TOKEN
     let spotifyToken = "";
-    async function getSpotifyToken() {
+    async function refreshSpotifyToken() {
         try {
-            const res = await fetch("https://accounts.spotify.com/api/token", {
+            const r = await fetch("https://accounts.spotify.com/api/token", {
                 method: "POST",
                 headers: { 
                     "Content-Type": "application/x-www-form-urlencoded", 
@@ -84,24 +88,24 @@
                 },
                 body: "grant_type=client_credentials"
             });
-            const data = await res.json();
-            spotifyToken = data.access_token;
-        } catch(e) { console.error("Spotify Auth Error", e); }
+            const d = await r.json();
+            spotifyToken = d.access_token;
+        } catch(e) { console.error("Spotify Auth Error"); }
     }
-    getSpotifyToken();
+    refreshSpotifyToken();
 
-    // 4. VYHLEDÁVÁNÍ
+    // 5. VYHLEDÁVÁNÍ A PŘIDÁVÁNÍ
     const input = document.getElementById('search-input');
     const resDiv = document.getElementById('search-results');
-    let timer;
+    let searchTimer;
 
     input.addEventListener('input', (e) => {
-        clearTimeout(timer);
-        let q = e.target.value;
-        if (q.trim().length < 3) { resDiv.style.display = "none"; return; }
-        timer = setTimeout(() => {
+        clearTimeout(searchTimer);
+        let query = e.target.value;
+        if (query.trim().length < 3) { resDiv.style.display = "none"; return; }
+        searchTimer = setTimeout(() => {
             if (!spotifyToken) return;
-            fetch("https://api.spotify.com/v1/search?q=" + encodeURIComponent(q) + "&type=track&limit=6", {
+            fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=6`, {
                 headers: { "Authorization": "Bearer " + spotifyToken }
             })
             .then(r => r.json())
@@ -116,7 +120,11 @@
                         item.className = "s-item";
                         item.innerHTML = `<img src="${img}"><div><b>${t.name}</b><small>${t.artists[0].name}</small></div>`;
                         item.onclick = () => {
-                            addSong(t.artists[0].name, t.name, img, t.id);
+                            if (isClean(t.name) && isClean(t.artists[0].name)) {
+                                addRequest(t.artists[0].name, t.name, img, t.id);
+                            } else {
+                                alert("Píseň obsahuje nevhodná slova.");
+                            }
                             input.value = ""; resDiv.style.display = "none";
                         };
                         resDiv.appendChild(item);
@@ -126,10 +134,10 @@
         }, 400);
     });
 
-    function addSong(artist, song, img, id) {
+    function addRequest(artist, song, img, id) {
         if (localStorage.getItem("voted_" + id)) return;
-        requestsRef.child(id).transaction(current => {
-            if (current) return { ...current, votes: (current.votes || 0) + 1 };
+        requestsRef.child(id).transaction(currentData => {
+            if (currentData) return { ...currentData, votes: (currentData.votes || 0) + 1 };
             return { artist, song, img, votes: 1, status: "waiting", timestamp: Date.now() };
         }, () => localStorage.setItem("voted_" + id, "1"));
     }
@@ -139,7 +147,7 @@
         requestsRef.child(id + "/votes").transaction(v => (v || 0) + 1, () => localStorage.setItem("voted_" + id, "1"));
     };
 
-    // 5. REALTIME SYNC - Tady se děje to kouzlo rozdělení
+    // 6. REALTIME ZOBRAZENÍ
     requestsRef.on("value", snapshot => {
         const data = snapshot.val();
         const qList = document.getElementById("queue-list");
