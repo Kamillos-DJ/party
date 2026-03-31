@@ -3,119 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hudba na přání | Moderátor-Dj</title>
+    <title>Hudba na přání</title>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
     <style>
-        /* ZÁKLADNÍ STYL WEBU */
-        body { background-color: #000; color: #fff; font-family: 'Inter', sans-serif; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+        /* Čistý design pro iframe na Webnode */
+        body { background: transparent; color: #fff; font-family: 'Inter', sans-serif; margin: 0; padding: 5px; -webkit-font-smoothing: antialiased; }
         
-        /* HORNÍ LIŠTA (HEADER) - VRÁCENO PODLE SCREENSHOTU */
-        .top-nav { background: #000; padding: 15px 50px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; }
-        .logo-area { display: flex; align-items: center; gap: 15px; }
-        .logo-box { background: #111; border: 1px solid #333; padding: 5px 10px; border-radius: 5px; font-weight: bold; color: #fff; }
-        .site-name { font-size: 24px; font-weight: 300; letter-spacing: 1px; }
-        .nav-menu { display: flex; gap: 20px; list-style: none; margin: 0; padding: 0; }
-        .nav-menu a { color: #fff; text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.3s; }
-        .nav-menu a:hover { color: #1DB954; }
+        #guest-app { max-width: 900px; margin: auto; }
 
-        /* HLAVNÍ KONTEJNER PRO DJ SLOŽKU */
-        #dj-box { max-width: 1100px; margin: 40px auto; background: #0a0a0a; padding: 35px; border-radius: 30px; border: 1px solid #1a1a1a; }
+        /* Vyhledávací pole */
+        .search-wrap { position: relative; margin-bottom: 30px; }
+        .label { color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; padding-left: 10px; }
+        input[type="text"] { width: 100%; padding: 14px 22px; border-radius: 30px; background: #111; color: #fff; border: 2px solid #1DB954; font-size: 16px; outline: none; box-sizing: border-box; }
         
-        /* VYHLEDÁVÁNÍ - DESIGN Z IMAGE_F82EBA */
-        .search-container { margin-bottom: 40px; }
-        .search-label { color: #aaa; font-size: 12px; margin-bottom: 12px; margin-left: 20px; text-transform: uppercase; letter-spacing: 1px; }
-        input[type="text"] { width: 100%; padding: 16px 28px; border-radius: 40px; background: #111; color: #fff; border: 2px solid #1DB954; font-size: 17px; outline: none; box-sizing: border-box; }
-        
-        .res-box { display: none; position: absolute; background: #181818; border-radius: 20px; width: 100%; max-width: 1030px; z-index: 100; border: 1px solid #333; margin-top: 5px; max-height: 400px; overflow-y: auto; }
-        .s-item { padding: 15px 25px; display: flex; align-items: center; gap: 15px; cursor: pointer; border-bottom: 1px solid #222; }
+        /* Výsledky vyhledávání */
+        .res-list { display: none; position: absolute; background: #1a1a1a; border: 1px solid #333; border-radius: 15px; width: 100%; z-index: 100; margin-top: 5px; max-height: 280px; overflow-y: auto; box-shadow: 0 10px 20px rgba(0,0,0,0.6); }
+        .s-item { padding: 10px 15px; display: flex; align-items: center; gap: 12px; cursor: pointer; border-bottom: 1px solid #222; }
         .s-item:hover { background: #222; }
-        .s-item img { width: 50px; height: 50px; border-radius: 4px; }
+        .s-item img { width: 40px; height: 40px; border-radius: 4px; }
 
-        /* SLOUPCE A KARTY */
-        .lists-container { display: flex; gap: 30px; flex-wrap: wrap; }
-        .list-column { flex: 1; min-width: 320px; }
-        h3 { font-size: 13px; color: #1DB954; text-transform: uppercase; text-align: center; letter-spacing: 2px; margin-bottom: 30px; border-bottom: 1px solid #1a1a1a; padding-bottom: 15px; }
+        /* Sloupce Fronta / Historie */
+        .flex-cols { display: flex; gap: 20px; flex-wrap: wrap; }
+        .col { flex: 1; min-width: 280px; }
+        h3 { font-size: 11px; color: #1DB954; text-transform: uppercase; text-align: center; letter-spacing: 2px; margin-bottom: 20px; border-bottom: 1px solid #222; padding-bottom: 8px; }
 
-        .req-card { position: relative; background: #161616; padding: 12px 20px; border-radius: 15px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; border: 1px solid #222; }
-        .req-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; background: var(--bar-color); border-radius: 15px 0 0 15px; }
-        .req-info { display: flex; align-items: center; gap: 15px; }
-        .req-info img { width: 55px; height: 55px; border-radius: 8px; }
-        .req-info b { font-size: 16px; display: block; margin-bottom: 3px; }
-        .req-info small { color: #888; font-size: 13px; }
+        /* Karta písničky (Hostovská verze) */
+        .song-card { position: relative; background: #161616; padding: 10px 15px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border: 1px solid #222; }
+        .song-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--line); border-radius: 12px 0 0 12px; }
+        .song-info { display: flex; align-items: center; gap: 10px; }
+        .song-info img { width: 45px; height: 45px; border-radius: 6px; }
+        .song-info b { font-size: 14px; display: block; color: #fff; line-height: 1.2; }
+        .song-info small { color: #888; font-size: 11px; }
 
-        /* STATUS TAGY */
-        .status-tag { font-size: 9px; font-weight: 800; padding: 4px 8px; border-radius: 4px; text-transform: uppercase; margin-right: 15px; background: rgba(255,255,255,0.05); }
+        /* Prvky interakce */
+        .status { font-size: 9px; font-weight: bold; padding: 3px 6px; border-radius: 4px; text-transform: uppercase; margin-right: 8px; background: rgba(255,255,255,0.05); }
         .st-waiting { color: #4682B4; }
         .st-accepted { color: #1DB954; }
         .st-rejected { color: #ff4444; }
 
-        .v-btn { background: #1DB954; border: none; color: #fff; width: 42px; height: 42px; border-radius: 50%; cursor: pointer; font-size: 22px; font-weight: bold; }
+        .v-btn { background: #1DB954; border: none; color: #fff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 18px; font-weight: bold; transition: 0.2s; }
         .v-btn.voted { opacity: 0.2; pointer-events: none; }
-
-        @media (max-width: 800px) { .top-nav { padding: 15px; flex-direction: column; gap: 15px; } .nav-menu { font-size: 12px; gap: 10px; } }
     </style>
 </head>
 <body>
 
-    <header class="top-nav">
-        <div class="logo-area">
-            <div class="logo-box">DjK</div>
-            <div class="site-name">Moderátor-Dj</div>
-        </div>
-        <ul class="nav-menu">
-            <li><a href="#">Úvod</a></li>
-            <li><a href="#">O nás</a></li>
-            <li><a href="#">Služby</a></li>
-            <li><a href="#">Ceník</a></li>
-            <li><a href="#">Rezervace</a></li>
-            <li><a href="#">Fotogalerie</a></li>
-            <li><a href="#">Kontakt</a></li>
-            <li><a href="#">Reference</a></li>
-        </ul>
-    </header>
-
-    <div id="dj-box">
-        <div class="search-container">
-            <div class="search-label">VYHLEDAT SPOTIFY, TIDAL</div>
-            <div style="position: relative;">
-                <input type="text" id="i" placeholder="Zadej název skladby nebo interpreta...">
-                <div id="r" class="res-box"></div>
-            </div>
+    <div id="guest-app">
+        <div class="search-wrap">
+            <div class="label">Přidej písničku do fronty</div>
+            <input type="text" id="search-input" placeholder="Hledej na Spotify...">
+            <div id="search-results" class="res-list"></div>
         </div>
 
-        <div class="lists-container">
-            <div class="list-column">
-                <h3>🔥 AKTUÁLNĚ VE FRONTĚ</h3>
-                <div id="l"></div>
+        <div class="flex-cols">
+            <div class="col">
+                <h3>🔥 Aktuální fronta</h3>
+                <div id="queue-list"></div>
             </div>
-            <div class="list-column">
-                <h3>✅ ODEHRÁNO</h3>
-                <div id="h"></div>
+            <div class="col">
+                <h3>✅ Odehráno</h3>
+                <div id="history-list"></div>
             </div>
         </div>
     </div>
 
 <script>
-    // 1. IZOLACE DAT PODLE DJ V URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const djName = urlParams.get('dj') || "default";
+    // 1. ZÍSKÁNÍ IDENTIFIKÁTORU DJ (Z URL PARAMETRU ?dj=...)
+    const params = new URLSearchParams(window.location.search);
+    const currentDjId = params.get('dj') || "demo"; // Pokud v URL nic není, uvidí "demo" složku
 
-    const cfg = {
+    // 2. FIREBASE KONFIGURACE
+    const config = {
         apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
         authDomain: "hudba-na-tuhle-skvelou-party.firebaseapp.com",
         databaseURL: "https://hudba-na-tuhle-skvelou-party-default-rtdb.firebaseio.com",
         projectId: "hudba-na-tuhle-skvelou-party"
     };
-    firebase.initializeApp(cfg);
+    firebase.initializeApp(config);
     const db = firebase.database();
     
-    // Cesta v databázi teď vede do složky konkrétního DJ
-    const dbRef = db.ref("djs/" + djName + "/requests");
+    // CESTA DO DATABÁZE PODLE TVÝCH NOVÝCH PRAVIDEL: djs / [DJ_ID] / requests
+    const requestsRef = db.ref("djs/" + currentDjId + "/requests");
 
-    // 2. SPOTIFY API
-    let sToken = "";
-    async function getSToken() {
+    // 3. SPOTIFY LOGIKA (TOKEN)
+    let spotifyToken = "";
+    async function refreshSpotifyToken() {
         try {
             const r = await fetch("https://accounts.spotify.com/api/token", {
                 method: "POST",
@@ -123,88 +95,99 @@
                 body: "grant_type=client_credentials"
             });
             const d = await r.json();
-            sToken = d.access_token;
-        } catch(e) { console.log("Spotify Auth Error"); }
+            spotifyToken = d.access_token;
+        } catch(e) { console.error("Spotify Auth Error"); }
     }
-    getSToken();
+    refreshSpotifyToken();
 
-    const input = document.getElementById('i');
-    const res = document.getElementById('r');
-    let timer;
+    // 4. VYHLEDÁVÁNÍ
+    const input = document.getElementById('search-input');
+    const resDiv = document.getElementById('search-results');
+    let searchTimer;
 
     input.addEventListener('input', (e) => {
-        clearTimeout(timer);
-        let v = e.target.value;
-        if (v.trim().length < 3) { res.style.display = "none"; return; }
-        timer = setTimeout(() => {
-            if (!sToken) return;
-            fetch("https://api.spotify.com/v1/search?q=" + encodeURIComponent(v) + "&type=track&limit=6", {
-                headers: { "Authorization": "Bearer " + sToken }
+        clearTimeout(searchTimer);
+        let query = e.target.value;
+        if (query.trim().length < 3) { resDiv.style.display = "none"; return; }
+        
+        searchTimer = setTimeout(() => {
+            if (!spotifyToken) return;
+            fetch("https://api.spotify.com/v1/search?q=" + encodeURIComponent(query) + "&type=track&limit=6", {
+                headers: { "Authorization": "Bearer " + spotifyToken }
             })
             .then(r => r.json())
-            .then(j => {
-                res.innerHTML = "";
-                const tracks = j.tracks?.items || [];
+            .then(data => {
+                resDiv.innerHTML = "";
+                const tracks = data.tracks?.items || [];
                 if (tracks.length > 0) {
-                    res.style.display = "block";
+                    resDiv.style.display = "block";
                     tracks.forEach(t => {
                         const img = t.album.images[2]?.url || "";
-                        const div = document.createElement("div");
-                        div.className = "s-item";
-                        div.innerHTML = `<img src="${img}"><div><b>${t.name}</b><small>${t.artists[0].name}</small></div>`;
-                        div.onclick = () => {
-                            sendReq(t.artists[0].name, t.name, img, t.id);
-                            input.value = ""; res.style.display = "none";
+                        const item = document.createElement("div");
+                        item.className = "s-item";
+                        item.innerHTML = `<img src="${img}"><div><b>${t.name}</b><small>${t.artists[0].name}</small></div>`;
+                        item.onclick = () => {
+                            addRequest(t.artists[0].name, t.name, img, t.id);
+                            input.value = ""; resDiv.style.display = "none";
                         };
-                        res.appendChild(div);
+                        resDiv.appendChild(item);
                     });
                 }
             });
         }, 400);
     });
 
-    function sendReq(a, s, i, id) {
-        if (localStorage.getItem("v_" + id)) return;
-        dbRef.child(id).transaction(curr => {
-            if (curr) return { ...curr, votes: (curr.votes || 0) + 1 };
-            return { artist: a, song: s, img: i, votes: 1, status: "waiting", time: Date.now() };
-        }, () => localStorage.setItem("v_" + id, "1"));
+    // 5. ODESLÁNÍ DO DATABÁZE
+    function addRequest(artist, song, img, id) {
+        if (localStorage.getItem("voted_" + id)) return;
+        requestsRef.child(id).transaction(currentData => {
+            if (currentData) {
+                return { ...currentData, votes: (currentData.votes || 0) + 1 };
+            }
+            return { artist: artist, song: song, img: img, votes: 1, status: "waiting", timestamp: Date.now() };
+        }, () => localStorage.setItem("voted_" + id, "1"));
     }
 
-    window.vote = (id) => {
-        if (localStorage.getItem("v_" + id)) return;
-        dbRef.child(id + "/votes").transaction(v => (v || 0) + 1, () => localStorage.setItem("v_" + id, "1"));
+    // 6. HLASOVÁNÍ
+    window.handleVote = (id) => {
+        if (localStorage.getItem("voted_" + id)) return;
+        requestsRef.child(id + "/votes").transaction(v => (v || 0) + 1, () => localStorage.setItem("voted_" + id, "1"));
     };
 
-    // 3. NAČÍTÁNÍ DAT ZE SPRÁVNÉ SLOŽKY DJ
-    dbRef.on("value", snap => {
-        const val = snap.val();
-        document.getElementById("l").innerHTML = "";
-        document.getElementById("h").innerHTML = "";
-        if (val) {
-            Object.entries(val).sort((a,b) => b[1].votes - a[1].votes).forEach(([id, d]) => {
-                const vtd = localStorage.getItem("v_" + id);
-                let sTxt = d.status === 'accepted' ? 'PŘIJATO' : (d.status === 'rejected' ? 'ZAMÍTNUTO' : 'ČEKÁ');
-                let sCls = d.status === 'accepted' ? 'st-accepted' : (d.status === 'rejected' ? 'st-rejected' : 'st-waiting');
-                let barCol = d.status === 'accepted' ? '#1DB954' : (d.status === 'rejected' ? '#ff4444' : (d.status === 'played' ? '#444' : '#4682B4'));
+    // 7. ZOBRAZENÍ DAT (REALTIME)
+    requestsRef.on("value", snapshot => {
+        const data = snapshot.val();
+        const qList = document.getElementById("queue-list");
+        const hList = document.getElementById("history-list");
+        qList.innerHTML = ""; hList.innerHTML = "";
+        
+        if (data) {
+            // Seřazení podle hlasů
+            Object.entries(data).sort((a,b) => b[1].votes - a[1].votes).forEach(([id, song]) => {
+                const hasVoted = localStorage.getItem("voted_" + id);
+                let label = song.status === 'accepted' ? 'PŘIJATO' : (song.status === 'rejected' ? 'ZAMÍTNUTO' : 'ČEKÁ');
+                let colorClass = song.status === 'accepted' ? 'st-accepted' : (song.status === 'rejected' ? 'st-rejected' : 'st-waiting');
+                let barColor = song.status === 'accepted' ? '#1DB954' : (song.status === 'rejected' ? '#ff4444' : (song.status === 'played' ? '#444' : '#4682B4'));
 
-                const card = `
-                    <div class="req-card" style="--bar-color: ${barCol}">
-                        <div class="req-info">
-                            <img src="${d.img}">
-                            <div><b>${d.song}</b><small>${d.artist}</small></div>
+                const html = `
+                    <div class="song-card" style="--line: ${barColor}">
+                        <div class="song-info">
+                            <img src="${song.img}">
+                            <div><b>${song.song}</b><small>${song.artist}</small></div>
                         </div>
                         <div style="display:flex; align-items:center;">
-                            <span class="status-tag ${sCls}">${sTxt}</span>
-                            <b style="font-size:18px; margin-right:15px;">${d.votes || 0}</b>
-                            <button onclick="vote('${id}')" class="v-btn ${vtd ? 'voted' : ''}">+</button>
+                            ${song.status !== 'played' ? `<span class="status ${colorClass}">${label}</span>` : ''}
+                            <b style="font-size:16px; margin-right:10px;">${song.votes || 0}</b>
+                            ${song.status !== 'played' ? `<button onclick="handleVote('${id}')" class="v-btn ${hasVoted ? 'voted' : ''}">+</button>` : ''}
                         </div>
                     </div>`;
-                if (d.status === "played") document.getElementById("h").innerHTML += card; 
-                else document.getElementById("l").innerHTML += card;
+                
+                if (song.status === "played") hList.innerHTML += html; 
+                else qList.innerHTML += html;
             });
         }
     });
 </script>
+
 </body>
 </html>
