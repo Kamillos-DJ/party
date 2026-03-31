@@ -1,19 +1,19 @@
 <!DOCTYPE html>
-<html lang="cs">
+<html>
 <head>
     <meta charset="UTF-8">
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
-<body>
-    <div id="app">Načítání aplikace...</div>
+<body style="background:transparent; color:#fff; font-family:sans-serif;">
+    <div id="status">Připojování...</div>
+    <div id="output"></div>
 
     <script>
-        // Čteme DJ PŘÍMO z adresy tohoto Iframe, ne zvenku
-        const params = new URLSearchParams(window.location.search);
-        const djId = params.get('dj') || "Neznamy";
+        // Čisté načtení parametrů bez ohledu na Webnode
+        const urlParams = new URLSearchParams(window.location.search);
+        const djId = urlParams.get('dj') || "Neznamy";
 
-        // FIREBASE START
         const firebaseConfig = {
             apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
             authDomain: "hudba-na-tuhle-skvelou-party.firebaseapp.com",
@@ -21,15 +21,20 @@
             projectId: "hudba-na-tuhle-skvelou-party"
         };
         firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
         
-        // Tady se to dělí do složek podle DJ
-        const requestsRef = db.ref("djs/" + djId + "/requests");
+        document.getElementById('status').innerText = "Aktivní DJ: " + djId;
 
-        // TEST FUNKČNOSTI - vypíšeme jméno DJ na obrazovku
-        document.getElementById('app').innerHTML = "<h1>DJ: " + djId + "</h1><p>Pokud vidíš správné jméno, databáze je oddělená.</p>";
-        
-        console.log("Databáze připojena pro složku: djs/" + djId);
+        // Načítání dat z unikátní složky DJ
+        firebase.database().ref("djs/" + djId + "/requests").on("value", snap => {
+            const list = snap.val();
+            let html = "";
+            if(list) {
+                Object.values(list).forEach(s => {
+                    html += `<div>${s.song} (Hlasů: ${s.votes || 0})</div>`;
+                });
+            }
+            document.getElementById('output').innerHTML = html || "Žádné písničky.";
+        });
     </script>
 </body>
 </html>
