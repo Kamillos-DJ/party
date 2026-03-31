@@ -52,11 +52,21 @@
 </div>
 
 <script>
-    // 1. NASTAVENÍ IDENTITY DJ - ZDE JE OPRAVA
-    const urlParams = new URLSearchParams(window.location.search);
-    // Bereme ID DJ z adresy, pokud tam není, použijeme "DEFAULT_LIST" místo "Kamillos DJ"
-    // To nám hned v konzoli ukáže, jestli se jméno předalo správně.
-    const djId = urlParams.get('dj') || "NO_DJ_SPECIFIED";
+    // --- OPRAVA SEPARACE DJ ---
+    const getDJ = () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        // Pokud v URL nic není, zkusíme se podívat do adresy nadřazeného okna (Webnode)
+        let id = urlParams.get('dj');
+        if (!id && window.parent !== window) {
+            try {
+                const parentParams = new URLSearchParams(window.parent.location.search);
+                id = parentParams.get('dj');
+            } catch(e) { console.log("Nelze číst z nadřazeného okna"); }
+        }
+        return id || "ZAKLADNI_SEZNAM";
+    };
+
+    const djId = getDJ();
     console.log("--- PŘIPOJOVÁNÍ K DATABÁZI ---");
     console.log("DJ ID z URL:", djId);
 
@@ -74,10 +84,10 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     
-    // CESTA V DATABÁZI - Nyní unikátní pro každého DJ
+    // Unikátní cesta pro každého DJ
     const requestsRef = db.ref("djs/" + djId + "/requests");
 
-    // Zbytek kódu (Spotify a Realtime)
+    // --- TVOJE SPOTIFY LOGIKA (PŮVODNÍ) ---
     let spotifyToken = "";
     async function getSpotifyToken() {
         try {
