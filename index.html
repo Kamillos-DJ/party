@@ -8,29 +8,38 @@
     #dj-box { max-width: 1000px; margin: auto; background: #121212; padding: 25px; border-radius: 20px; border: 1px solid #333; }
     .search-container { display: flex; flex-direction: column; gap: 5px; }
     .search-wrapper { position: relative; width: 100%; }
-    .search-label { color: #bbb; font-size: 13px; margin-bottom: 8px; margin-left: 15px; font-weight: 400; letter-spacing: 0.5px; text-transform: uppercase; }
-    input[type="text"] { width: 100%; padding: 14px 22px; border-radius: 30px; background: #222; color: #fff; box-sizing: border-box; font-size: 17px; outline: none; border: 2px solid #1DB954; }
+    
+    /* Popisek nad vyhledáváním */
+    .search-label { color: #bbb; font-size: 12px; margin-bottom: 8px; margin-left: 15px; font-weight: 400; letter-spacing: 0.5px; }
+    
+    input[type="text"] { width: 100%; padding: 12px 20px; border-radius: 25px; background: #222; color: #fff; box-sizing: border-box; font-size: 16px; outline: none; border: 2px solid #1DB954; }
+    
     #banned-box { display: none; width: 100%; padding: 10px; border-radius: 12px; border: 2px solid #ff4444; background: #330000; color: #fff; box-sizing: border-box; margin: 8px 0; font-size: 14px; text-align: center; font-weight: bold; z-index: 10000; }
     .res-box { display: none; position: absolute; top: 100%; left: 0; right: 0; background: #252525; border-radius: 15px; margin-top: 5px; max-height: 300px; overflow-y: auto; border: 1px solid #444; z-index: 9999; }
-    .s-item { padding: 12px 20px; display: flex; align-items: center; gap: 15px; cursor: pointer; border-bottom: 1px solid #333; }
+    .s-item { padding: 10px 18px; display: flex; align-items: center; gap: 12px; cursor: pointer; border-bottom: 1px solid #333; }
     .s-item:hover { background: #333; }
-    .s-item b { display: block; font-size: 16px; color: #fff; }
-    .s-item img { width: 45px; height: 45px; border-radius: 6px; }
+    .s-item b { display: block; font-size: 15px; color: #fff; }
+    .s-item img { width: 40px; height: 40px; border-radius: 6px; }
+    
     .lists-container { display: flex; gap: 20px; margin-top: 30px; flex-wrap: wrap; }
     .list-column { flex: 1; min-width: 320px; }
-    .req-card { position: relative; background: #222; padding: 10px 15px 10px 20px; border-radius: 14px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; border: 1px solid #333; overflow: hidden; }
-    .req-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 7px; background: var(--bar-color, #4682B4); }
-    .req-info { display: flex; align-items: center; gap: 15px; overflow: hidden; }
-    .req-info b { font-size: 16px; display: block; line-height: 1.2; color: #ffffff !important; }
-    .req-info small { font-size: 13px; color: #bbb; }
-    .req-info img { width: 48px; height: 48px; border-radius: 8px; flex-shrink: 0; }
-    .status-tag { font-size: 10px; font-weight: 900; text-transform: uppercase; margin-right: 12px; padding: 3px 7px; border-radius: 5px; background: rgba(255,255,255,0.05); letter-spacing: 0.5px; }
+
+    .req-card { position: relative; background: #222; padding: 7px 12px 7px 18px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; border: 1px solid #333; overflow: hidden; }
+    .req-card::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--bar-color, #4682B4); }
+    
+    .req-info { display: flex; align-items: center; gap: 12px; overflow: hidden; }
+    .req-info b { font-size: 15px; display: block; line-height: 1.2; color: #ffffff !important; }
+    .req-info small { font-size: 12px; color: #bbb; }
+    .req-info img { width: 42px; height: 42px; border-radius: 6px; flex-shrink: 0; }
+    
+    .status-tag { font-size: 9px; font-weight: 900; text-transform: uppercase; margin-right: 12px; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.05); letter-spacing: 0.5px; }
     .st-accepted { color: #1DB954; }
     .st-rejected { color: #ff4444; }
     .st-waiting { color: #4682B4; }
-    .v-btn { background: #1DB954; border: none; color: #fff; width: 38px; height: 38px; border-radius: 50%; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; }
+
+    .v-btn { background: #1DB954; border: none; color: #fff; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; font-size: 17px; display: flex; align-items: center; justify-content: center; }
     .voted { opacity: 0.2; pointer-events: none; }
-    h3 { color: #1DB954; font-size: 14px; text-transform: uppercase; text-align: center; border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 20px; letter-spacing: 1.5px; }
+    h3 { color: #1DB954; font-size: 13px; text-transform: uppercase; text-align: center; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 15px; letter-spacing: 1px; }
 </style>
 
 <div id="dj-box">
@@ -49,10 +58,7 @@
 </div>
 
 <script>
-// Získání jména DJ z URL
-const urlParams = new URLSearchParams(window.location.search);
-const djName = urlParams.get('dj') || "default";
-
+// Firebase a Token logika zůstává stejná
 const cfg = {
     apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
     authDomain: "hudba-na-tuhle-skvelou-party.firebaseapp.com",
@@ -61,7 +67,6 @@ const cfg = {
 };
 firebase.initializeApp(cfg);
 const db = firebase.database();
-const dbRef = db.ref("djs/" + djName + "/requests");
 
 let sToken = "";
 async function getSToken() {
@@ -120,6 +125,7 @@ input.addEventListener('input', (e) => {
                     div.className = "s-item";
                     div.innerHTML = '<img src="' + img + '"><div><b>' + t.name + '</b><small>' + t.artists[0].name + '</small></div>';
                     div.onclick = () => {
+                        // Posíláme požadavek (v kódu zůstává podpora pro Tidal link, pokud by byl potřeba)
                         sendReq(t.artists[0].name, t.name, img, t.id, "");
                         input.value = ""; res.style.display = "none";
                     };
@@ -132,7 +138,7 @@ input.addEventListener('input', (e) => {
 
 function sendReq(a, s, i, id, tidalLink = "") {
     if (localStorage.getItem("v_" + id)) return;
-    dbRef.child(id).transaction(curr => {
+    db.ref("requests/" + id).transaction(curr => {
         if (curr) return { ...curr, votes: (curr.votes || 0) + 1 };
         return { artist: a, song: s, img: i, votes: 1, status: "waiting", time: Date.now(), tidal: tidalLink };
     }, () => localStorage.setItem("v_" + id, "1"));
@@ -140,13 +146,11 @@ function sendReq(a, s, i, id, tidalLink = "") {
 
 window.vote = (id) => {
     if (localStorage.getItem("v_" + id)) return;
-    dbRef.child(id + "/votes").transaction(v => (v || 0) + 1, () => localStorage.setItem("v_" + id, "1"));
+    db.ref("requests/" + id + "/votes").transaction(v => (v || 0) + 1, () => localStorage.setItem("v_" + id, "1"));
 };
 
-dbRef.on("value", snap => {
+db.ref("requests").on("value", snap => {
     const val = snap.val();
-    document.getElementById("l").innerHTML = "";
-    document.getElementById("h").innerHTML = "";
     let lH = "", hH = "";
     if (val) {
         Object.entries(val).sort((a,b) => b[1].votes - a[1].votes).forEach(([id, d]) => {
@@ -159,14 +163,14 @@ dbRef.on("value", snap => {
                 '<div class="req-info"><img src="' + d.img + '"><div><b>' + d.song + '</b><small>' + d.artist + '</small></div></div>' +
                 '<div style="display:flex;align-items:center;">' + 
                 (d.status !== 'played' ? '<span class="status-tag ' + sCls + '">' + sTxt + '</span>' : '') +
-                '<b style="font-size:17px; margin-right:12px; color: #fff;">' + (d.votes||0) + '</b>' + 
+                '<b style="font-size:16px; margin-right:12px; color: #fff;">' + (d.votes||0) + '</b>' + 
                 (d.status !== 'played' ? '<button onclick="vote(\'' + id + '\')" class="v-btn ' + (vtd?'voted':'') + '">+</button>' : '') + 
                 '</div>' +
             '</div>';
             if (d.status === "played") hH += card; else lH += card;
         });
-        document.getElementById("l").innerHTML = lH;
-        document.getElementById("h").innerHTML = hH;
     }
+    document.getElementById("l").innerHTML = lH;
+    document.getElementById("h").innerHTML = hH;
 });
 </script>
