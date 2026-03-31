@@ -1,0 +1,156 @@
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<style>
+    @keyframes pulse-new {
+        0% { background-color: #1f1f1f; }
+        50% { background-color: #252525; }
+        100% { background-color: #1f1f1f; }
+    }
+    .new-request { animation: pulse-new 2s infinite ease-in-out; }
+    .meta-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
+    .btn-row { display: flex; align-items: center; gap: 5px; }
+    .votes-badge { color: #ffcc00; font-size: 11px; font-weight: bold; background: rgba(255, 204, 0, 0.1); padding: 3px 6px; border-radius: 5px; }
+    .status-label { font-size: 9px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+    .btn-small { border: none; padding: 4px 8px; border-radius: 5px; font-size: 10px; font-weight: bold; cursor: pointer; white-space: nowrap; text-decoration: none; }
+    .cp-btn { background: #2e77d0; color: #fff; }
+    .t-btn { background: #444; color: #fff; }
+    .t-btn-active { background: #00FFFF; color: #000; }
+    .ctrl-btn { border: none; color: #fff; padding: 8px; border-radius: 6px; font-size: 10px; cursor: pointer; font-weight: bold; text-transform: uppercase; }
+    .del-btn { background: rgba(255,255,255,0.05); border: 1px solid #555; color: #888; width: 40px; border-radius: 6px; font-size: 9px; cursor: pointer; transition: all 0.2s; }
+    .del-btn:hover { border-color: #ff4444; color: #ff4444; background: rgba(255,0,0,0.1); }
+</style>
+
+<div id="dj-admin-container" style="background:#121212;color:#fff;padding:15px;border-radius:15px;font-family:sans-serif;max-width:900px;margin:auto;border:1px solid #333;">
+    <h2 style="text-align:center;color:#1DB954;margin-top:0;font-size:18px;text-transform:uppercase;">🎧 DJ OVLÁDACÍ KONZOLE</h2>
+    
+    <div style="display:flex; gap:10px; justify-content:center; margin-bottom:20px;">
+        <button onclick="window.acceptAll()" style="background:#1DB954; color:white; border:none; padding:8px 15px; border-radius:8px; cursor:pointer; font-weight:bold; font-size:11px;">✅ PŘIJMOUT VŠE ČEKAJÍCÍ</button>
+        <button onclick="window.hardReset()" style="background:#881111; color:white; border:none; padding:10px 15px; border-radius:5px; cursor:pointer; font-weight:bold; font-size:12px;">🚨 KOMPLETNÍ RESET</button>
+    </div>
+
+    <div style="display:flex;gap:20px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:320px;">
+            <h3 style="color:#1DB954;font-size:14px;border-bottom:1px solid #1DB954;padding-bottom:5px;text-transform:uppercase;margin-bottom:10px;">🔥 FRONTA</h3>
+            <div id="admin-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+        <div style="flex:1;min-width:320px;">
+            <h3 style="color:#ffffff;font-size:14px;border-bottom:1px solid #444;padding-bottom:5px;text-transform:uppercase;margin-bottom:10px;">✅ ODEHRÁNO</h3>
+            <div id="admin-history" style="display:flex;flex-direction:column;gap:5px;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+const cfg = {
+    apiKey: "AIzaSyAMb87-JHDqlUFghfCgT9ch91WlLbHzFv4",
+    authDomain: "hudba-na-tuhle-skvelou-party.firebaseapp.com",
+    databaseURL: "https://hudba-na-tuhle-skvelou-party-default-rtdb.firebaseio.com",
+    projectId: "hudba-na-tuhle-skvelou-party"
+};
+if (!firebase.apps.length) firebase.initializeApp(cfg);
+const d = firebase.database();
+
+window.setS = (id, s) => {
+    const r = d.ref("requests/" + id);
+    if (s === 'played') r.update({ status: s, playedAt: Date.now() });
+    else r.update({ status: s });
+};
+
+window.cp = (t, b) => {
+    navigator.clipboard.writeText(t).then(() => {
+        const o = b.innerText; b.innerText = "OK ✅";
+        b.style.background = "#fff"; b.style.color = "#000";
+        setTimeout(() => { b.innerText = o; b.style.background = "#2e77d0"; b.style.color = "#fff"; }, 1000);
+    });
+};
+
+window.acceptAll = () => {
+    if (confirm('Přijmout všechna nová přání?')) {
+        d.ref("requests").once("value", s => {
+            const v = s.val(); if (!v) return;
+            const u = {};
+            Object.entries(v).forEach(([id, x]) => { 
+                if (x.status === 'waiting') u[id + '/status'] = 'accepted'; 
+            });
+            d.ref("requests").update(u);
+        });
+    }
+};
+
+window.hardReset = () => { 
+    if (confirm('🚨 POZOR: Opravdu smazat ÚPLNĚ VŠECHNA DATA?')) {
+        d.ref("requests").once("value", s => {
+            const v = s.val();
+            if (!v) return;
+            const updates = {};
+            Object.keys(v).forEach(k => { updates[k] = null; });
+            d.ref("requests").update(updates)
+                .then(() => alert("Smazáno!"))
+                .catch(err => alert("Chyba: " + err.message));
+        });
+    }
+};
+
+// NOVÁ FUNKCE PRO MAZÁNÍ JEDNOHO TRACKU
+window.deleteOne = (id) => {
+    if (confirm('Smazat tento track?')) {
+        d.ref("requests/" + id).remove()
+            .catch(err => alert("Chyba při mazání: " + err.message));
+    }
+};
+
+d.ref("requests").on("value", s => {
+    const l = document.getElementById("admin-list");
+    const h = document.getElementById("admin-history");
+    const v = s.val();
+    if (!v) { l.innerHTML = h.innerHTML = "<small style='color:#666'>Prázdno.</small>"; return; }
+    
+    let leftH = ""; let rightH = "";
+    const items = Object.entries(v).sort((a, b) => (b[1].votes || 0) - (a[1].votes || 0));
+
+    items.forEach(([id, x]) => {
+        const sn = x.artist + " - " + x.song;
+        if (x.status !== 'played') {
+            const color = x.status === 'accepted' ? '#1DB954' : (x.status === 'rejected' ? '#ff4444' : '#4682B4');
+            const label = x.status === 'accepted' ? 'PŘIJATO' : (x.status === 'rejected' ? 'ZAMÍTNUTO' : 'ČEKÁ');
+            leftH += `<div class="${x.status === 'waiting' ? 'new-request' : ''}" style="background:#1f1f1f; padding:10px 12px; border-radius:12px; border:1px solid #333; border-left:6px solid ${color}; display:flex; flex-direction:column; gap:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div style="display:flex; align-items:center; gap:12px; overflow:hidden;">
+                        <img src="${x.img}" width="48" height="48" style="border-radius:8px;">
+                        <div style="line-height:1.2; overflow:hidden;">
+                            <b style="color:#fff; font-size:17px; display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${x.song}</b>
+                            <div style="font-size:13px; color:#aaa;">${x.artist}</div>
+                        </div>
+                    </div>
+                    <div class="meta-right">
+                        <div class="btn-row">
+                            <div class="votes-badge">⭐ ${x.votes || 0}</div>
+                            <button onclick="window.cp('${sn.replace(/'/g, "\\'")}',this)" class="btn-small cp-btn">COPY</button>
+                            <a href="${x.tidal || 'https://listen.tidal.com/search?q='+encodeURIComponent(sn)}" target="_blank" class="btn-small t-btn ${x.tidal ? 't-btn-active' : ''}">TIDAL</a>
+                        </div>
+                        <div class="status-label" style="color:${color};">${label}</div>
+                    </div>
+                </div>
+                <div style="display:flex; gap:5px;">
+                    <button onclick="window.setS('${id}','accepted')" class="ctrl-btn" style="background:#1DB954; flex:1.5;">PŘIJMOUT</button>
+                    <button onclick="window.setS('${id}','played')" class="ctrl-btn" style="background:#444; flex:1;">HOTOVO</button>
+                    <button onclick="window.setS('${id}','rejected')" class="ctrl-btn" style="background:#881111; flex:1.2;">ZAMÍTNOUT</button>
+                    <button onclick="window.deleteOne('${id}')" class="del-btn">DEL</button>
+                </div>
+            </div>`;
+        } else {
+            rightH += `<div style="background:#1a1a1a; padding:8px 12px; border-radius:10px; display:flex; align-items:center; gap:12px; border:1px solid #333; margin-bottom:5px;">
+                <img src="${x.img}" width="30" height="30" style="border-radius:4px; filter:grayscale(30%);">
+                <div style="flex:1; overflow:hidden;">
+                    <b style="font-size:13px; color:#ffffff; display:block;">${x.song}</b>
+                    <span style="font-size:11px; color:#aaa;">${x.artist}</span>
+                </div>
+                <button onclick="window.deleteOne('${id}')" style="background:none; border:none; color:#ff4444; cursor:pointer; font-size:14px;">❌</button>
+            </div>`;
+        }
+    });
+    l.innerHTML = leftH || "<small style='color:#666'>Žádné žádosti.</small>";
+    h.innerHTML = rightH || "<small style='color:#666'>Prázdno.</small>";
+});
+</script>
